@@ -40,13 +40,26 @@ export default function AdminItemForm({ open, onClose, onSaved, categories, item
   const handleFile = async (file) => {
     if (!file) return
     setError('')
+    
+    // Validate size up to 20MB
+    if (file.size > 20 * 1024 * 1024) {
+      setError('حجم الصورة كبير جداً. يجب أن يكون أقل من 20 ميجابايت.')
+      return
+    }
+
     try {
-      // compress under 200KB
+      setUploading(5)
+      // Compress to 150KB - 200KB range (maxSizeMB: 0.18)
       const compressed = await imageCompression(file, {
-        maxSizeMB: 0.2,
-        maxWidthOrHeight: 1000,
+        maxSizeMB: 0.18,
+        maxWidthOrHeight: 1200,
         useWebWorker: true,
+        onProgress: (p) => {
+          setUploading(Math.round(p * 0.6)) // 0% to 60% progress is compression
+        }
       })
+      
+      setUploading(75) // 75% progress is starting upload
       const ext = file.name.split('.').pop().toLowerCase()
       const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
       const path = `items/${fileName}`
@@ -57,12 +70,14 @@ export default function AdminItemForm({ open, onClose, onSaved, categories, item
 
       if (upErr) throw upErr
 
+      setUploading(100)
       const { data: pub } = supabase.storage.from('menu-images').getPublicUrl(path)
       set('image_url', pub.publicUrl)
     } catch (err) {
       setError('فشل رفع الصورة: ' + (err.message || err))
     } finally {
-      setUploading(0)
+      // Small delay so progress shows 100% briefly before resetting
+      setTimeout(() => setUploading(0), 400)
     }
   }
 
@@ -135,7 +150,7 @@ export default function AdminItemForm({ open, onClose, onSaved, categories, item
                   <X size={13} /> إزالة الصورة
                 </button>
               )}
-              <p className="mt-1 text-[11px] text-gray-400">يُضغط تلقائياً تحت 200KB</p>
+
             </div>
           </div>
         </div>
