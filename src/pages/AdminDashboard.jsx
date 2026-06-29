@@ -9,7 +9,7 @@ import useMenuData from '../hooks/useMenuData'
 import CategoriesManager from '../components/admin/CategoriesManager'
 import ItemsManager from '../components/admin/ItemsManager'
 import QRCodeDisplay from '../components/QRCodeDisplay'
-import { MENU_URL, RESTAURANT_NAME } from '../lib/supabaseClient'
+import { supabase, MENU_URL, RESTAURANT_NAME } from '../lib/supabaseClient'
 import { logout as adminLogout } from '../lib/adminAuth'
 
 const TABS = [
