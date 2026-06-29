@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import CategoryIcon from './CategoryIcon'
 
 /**
  * Sticky horizontal-scrollable category tabs with snap scrolling.
@@ -45,7 +46,7 @@ export default function CategoryTabs({ categories, activeId, onSelect }) {
                   : 'border-white/10 bg-white/5 text-text/80 hover:border-accent/50 hover:text-accent'
               }`}
             >
-              {c.icon && <span className="text-base leading-none sm:text-lg">{c.icon}</span>}
+              {c.icon && <CategoryIcon name={c.icon} className="shrink-0" size={16} />}
               <span>{c.name_ar}</span>
             </button>
           )

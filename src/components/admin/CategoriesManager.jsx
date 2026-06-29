@@ -5,6 +5,7 @@ import Toggle from './Toggle'
 import ConfirmDialog from './ConfirmDialog'
 import { supabase } from '../../lib/supabaseClient'
 import { isDemo, demoCategories } from '../../lib/demoData'
+import CategoryIcon from '../CategoryIcon'
 
 /**
  * Categories manager: list, add, edit, delete, toggle visibility.
@@ -36,7 +37,28 @@ export default function CategoriesManager({ categories, onRefresh }) {
 
   const deleteCat = async () => {
     if (!confirm.item || demo) return
+    
+    // 1. Delete the category
     await supabase.from('categories').delete().eq('id', confirm.item.id)
+    
+    // 2. Adjust sorting of remaining categories
+    const { data: remainingCats } = await supabase
+      .from('categories')
+      .select('id, sort_order')
+      .order('sort_order', { ascending: true })
+      
+    if (remainingCats && remainingCats.length > 0) {
+      for (let i = 0; i < remainingCats.length; i++) {
+        const newOrder = i + 1
+        if (remainingCats[i].sort_order !== newOrder) {
+          await supabase
+            .from('categories')
+            .update({ sort_order: newOrder })
+            .eq('id', remainingCats[i].id)
+        }
+      }
+    }
+    
     setConfirm({ open: false, item: null })
     onRefresh()
   }
@@ -67,7 +89,7 @@ export default function CategoriesManager({ categories, onRefresh }) {
           >
             <div className="flex items-center gap-3">
               <GripVertical className="shrink-0 text-gray-300" size={18} />
-              {c.icon && <span className="text-xl">{c.icon}</span>}
+              {c.icon && <CategoryIcon name={c.icon} className="shrink-0 text-accent" size={20} />}
               <div className="min-w-0 flex-1">
                 <span className="font-bold text-gray-900">{c.name_ar}</span>
                 {c.name_en && <span className="mr-2 text-xs text-gray-400">{c.name_en}</span>}

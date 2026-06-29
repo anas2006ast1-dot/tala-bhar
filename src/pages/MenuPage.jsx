@@ -8,6 +8,7 @@ import CategoryTabs from '../components/CategoryTabs'
 import MenuItemCard from '../components/MenuItemCard'
 import Lightbox from '../components/Lightbox'
 import WaveDivider from '../components/WaveDivider'
+import CategoryIcon from '../components/CategoryIcon'
 import { RESTAURANT_NAME, CURRENCY } from '../lib/supabaseClient'
 
 export default function MenuPage() {
@@ -166,7 +167,7 @@ export default function MenuPage() {
           grouped.map((cat) => (
             <section key={cat.id} id={`cat-${cat.id}`} className="mb-8 scroll-mt-28 sm:mb-10 sm:scroll-mt-32">
               <div className="mb-4 flex items-center gap-3">
-                {cat.icon && <span className="text-xl sm:text-2xl">{cat.icon}</span>}
+                {cat.icon && <CategoryIcon name={cat.icon} className="text-accent" size={24} />}
                 <h2 className="text-xl font-bold text-text sm:text-2xl" style={{ fontFamily: "'Cairo', sans-serif" }}>{cat.name_ar}</h2>
                 <span className="leader-dots" />
                 <span className="text-xs text-text/40">{cat.items.length} صنف</span>
