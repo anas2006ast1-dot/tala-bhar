@@ -1,84 +1,90 @@
 -- ============================================================
---  طلة بحر — Seed Data (المأكولات البحرية)
+--  طلة بحر SeaView — Seed Data (من المنيو الرسمي)
+--  ملاحظة: هذا الملف يحذف الأصناف القديمة ويزرع منيو SeaView الجديد.
+--  شغّله في Supabase SQL Editor.
 -- ============================================================
 
--- Categories (ترتيب حسب الظهور في المنيو الأصلي) -----------
+-- Clean old data --------------------------------------------
+delete from public.menu_items;
+delete from public.categories;
+
+-- Categories (ترتيب حسب المنيو الأصلي) -----------------------
 insert into public.categories (name_ar, name_en, icon, sort_order, is_visible) values
-  ('المقبلات البحرية', 'Seafood Appetizers', '🦐', 1, true),
-  ('الشوربات',         'Soups',              '🍲', 2, true),
-  ('المشاوي البحرية',  'Grilled Seafood',    '🔥', 3, true),
-  ('السمك المقلي',     'Fried Fish',         '🐟', 4, true),
-  ('المأكولات والربيان','Seafood & Shrimp',   '🦑', 5, true),
-  ('الأرز والمشاوي',   'Rice & Grills',      '🍚', 6, true),
-  ('السلطات',          'Salads',             '🥗', 7, true),
-  ('العصائر والمشروبات','Juices & Drinks',    '🥤', 8, true),
-  ('الحلويات',         'Desserts',           '🍮', 9, true)
-on conflict do nothing;
+  ('الشوربات',                   'Soups',            '🍲',        1, true),
+  ('السلطات',                    'Salads',           '🥗',        2, true),
+  ('الشرمب والمأكولات البحرية',  'Shrimp & Seafood', '🦐',        3, true),
+  ('سي فود باكيت',               'Seafood Packet',   '🦑',        4, true),
+  ('طواجن الجمبري',              'Shrimp Tagines',   'CookingPot', 5, true),
+  ('طواجن السمك',                'Fish Tagines',     'CookingPot', 6, true),
+  ('فيليه السمك',                'Fish Fillet',      '🐟',        7, true),
+  ('المشاريب',                   'Drinks',           '🥤',        8, true),
+  ('المشروبات الساخنة',          'Hot Drinks',       'Coffee',    9, true);
 
 -- Menu items -----------------------------------------------
 insert into public.menu_items (category_id, name_ar, name_en, description_ar, price, is_available, is_featured, sort_order, image_url) values
--- المقبلات البحرية
-((select id from categories where name_ar='المقبلات البحرية'), 'حمص بالطحينة', 'Hummus with Tahini', 'حمص كريمي مع زيت زيتون', 18, true, false, 1, null),
-((select id from categories where name_ar='المقبلات البحرية'), 'متبل الباذنجان', 'Mutabbal', 'باذنجان مشوي مع طحينة ولبن', 18, true, false, 2, null),
-((select id from categories where name_ar='المقبلات البحرية'), 'تبولة', 'Tabbouleh', 'بقدونس طازج، برغل، طماطم ونعناع', 20, true, false, 3, null),
-((select id from categories where name_ar='المقبلات البحرية'), 'فتوش', 'Fattoush', 'خضار موسمية مع خبز محمص ودبس الرمان', 22, true, false, 4, null),
-((select id from categories where name_ar='المقبلات البحرية'), 'كبة مقلية', 'Fried Kibbeh', 'كبة برغل محشية لحماً وصنوبراً', 26, true, true, 5, null),
-((select id from categories where name_ar='المقبلات البحرية'), 'ربيان مقلي مقبلات', 'Fried Shrimp Appetizer', 'ربيان مقلي مع صلصة حارة', 35, true, true, 6, null),
-
 -- الشوربات
-((select id from categories where name_ar='الشوربات'), 'شوربة بحرية', 'Seafood Soup', 'شوربة غنية بالمأكولات البحرية', 24, true, true, 1, null),
-((select id from categories where name_ar='الشوربات'), 'شوربة الربيان', 'Shrimp Soup', 'شوربة كريمية بالربيان', 26, true, false, 2, null),
-((select id from categories where name_ar='الشوربات'), 'شوربة سمك', 'Fish Soup', 'قطع سمك طازج مع خضار', 24, true, false, 3, null),
-
--- المشاوي البحرية
-((select id from categories where name_ar='المشاوي البحرية'), 'سمك مشوي', 'Grilled Fish', 'سمك اليوم المشوي مع الأعشاب', 75, true, true, 1, null),
-((select id from categories where name_ar='المشاوي البحرية'), 'كاليماري مشوي', 'Grilled Calamari', 'حبار مشوي مع صلصة الليمون', 68, true, true, 2, null),
-((select id from categories where name_ar='المشاوي البحرية'), 'ربيان مشوي', 'Grilled Shrimp', 'ربيان بلدي مشوي بالثوم والليمون', 82, true, true, 3, null),
-((select id from categories where name_ar='المشاوي البحرية'), 'سمك دنيس مشوي', 'Grilled Denis', 'دنيس طازج مشوي على الفحم', 95, true, true, 4, null),
-((select id from categories where name_ar='المشاوي البحرية'), 'سمك لوقس مشوي', 'Grilled Lukas', 'لوقس مشوي مع بطاطا وسلطة', 90, true, false, 5, null),
-
--- السمك المقلي
-((select id from categories where name_ar='السمك المقلي'), 'سمك مقلي', 'Fried Fish', 'سمك يوم مقلي مقرمش', 65, true, true, 1, null),
-((select id from categories where name_ar='السمك المقلي'), 'سمك موسى مقلي', 'Fried Sole', 'موسى مقلي مع صلصة الطرخونة', 70, true, false, 2, null),
-((select id from categories where name_ar='السمك المقلي'), 'سمك مرجان مقلي', 'Fried Coral Fish', 'مرجان مقلي مع بطاطا', 68, true, false, 3, null),
-
--- المأكولات والربيان
-((select id from categories where name_ar='المأكولات والربيان'), 'صحن بحري مشكل', 'Mixed Seafood Platter', 'تشكيلة سمك وربيان وحبار مشوي', 180, true, true, 1, null),
-((select id from categories where name_ar='المأكولات والربيان'), 'ربيان بالثوم', 'Garlic Shrimp', 'ربيان مقلي بالثوم والزبدة', 78, true, true, 2, null),
-((select id from categories where name_ar='المأكولات والربيان'), 'كاليماري مقلي', 'Fried Calamari', 'حبار مقلي مقرمش مع الليمون', 65, true, true, 3, null),
-((select id from categories where name_ar='المأكولات والربيان'), 'أصابع الربيان', 'Shrimp Fingers', 'ربيان مغلف بالبقسماط مقلي', 60, true, false, 4, null),
-
--- الأرز والمشاوي
-((select id from categories where name_ar='الأرز والمشاوي'), 'صيادية', 'Sayadiyah', 'أرز بالسمك والبهارات البحرية', 55, true, true, 1, null),
-((select id from categories where name_ar='الأرز والمشاوي'), 'كبسة ربيان', 'Shrimp Kabsa', 'أرز بهار مع ربيان طازج', 72, true, true, 2, null),
-((select id from categories where name_ar='الأرز والمشاوي'), 'مندي سمك', 'Fish Mandi', 'أرز مندي مع سمك مشوي', 70, true, false, 3, null),
-((select id from categories where name_ar='الأرز والمشاوي'), 'مشاوي مشكلة', 'Mixed Grill', 'تشكيلة لحوم مشوية مع أرز', 95, true, true, 4, null),
+((select id from categories where name_ar='الشوربات'), 'شوربة كريمة', 'Cream Soup', 'دفء البحر في طبق', 20, true, false, 1, null),
+((select id from categories where name_ar='الشوربات'), 'شوربة طلة بحر', 'Talat Bahr Soup', 'شوربة المطعم الخاصة بالمأكولات البحرية', 30, true, true, 2, null),
 
 -- السلطات
-((select id from categories where name_ar='السلطات'), 'سلطة بحرية', 'Seafood Salad', 'خضار طازجة مع ربيان وسمك', 32, true, true, 1, null),
-((select id from categories where name_ar='السلطات'), 'سلطة جرجر', 'Rocket Salad', 'جرجر مع طماطم وبصل وليمون', 18, true, false, 2, null),
-((select id from categories where name_ar='السلطات'), 'سلطة الملفوف', 'Coleslaw', 'كرنب وملفوف مع صوص كريمي', 16, true, false, 3, null),
+((select id from categories where name_ar='السلطات'), 'بقدونسية', 'Parsley Salad', null, 7, true, false, 1, null),
+((select id from categories where name_ar='السلطات'), 'تركية', 'Turkish Salad', null, 7, true, false, 2, null),
+((select id from categories where name_ar='السلطات'), 'ملفوف أحمر', 'Red Cabbage', null, 7, true, false, 3, null),
+((select id from categories where name_ar='السلطات'), 'حمص', 'Hummus', null, 10, true, false, 4, null),
+((select id from categories where name_ar='السلطات'), 'فلاحية', 'Falahiya Salad', null, 10, true, false, 5, null),
+((select id from categories where name_ar='السلطات'), 'غزاوية', 'Gazan Salad', null, 15, true, false, 6, null),
+((select id from categories where name_ar='السلطات'), 'فرادورا ماري', 'Fradura Mare', null, 35, true, true, 7, null),
 
--- العصائر والمشروبات
-((select id from categories where name_ar='العصائر والمشروبات'), 'ليمون بالنعناع', 'Lemon Mint', 'عصير ليمون طازج بالنعناع', 14, true, true, 1, null),
-((select id from categories where name_ar='العصائر والمشروبات'), 'عصير برتقال', 'Orange Juice', 'عصير برتقال طبيعي طازج', 14, true, false, 2, null),
-((select id from categories where name_ar='العصائر والمشروبات'), 'ماء', 'Mineral Water', 'مياه معدنية', 5, true, false, 3, null),
-((select id from categories where name_ar='العصائر والمشروبات'), 'مشروبات غازية', 'Soft Drinks', 'كوكا كولا، سبرايت، فانتا', 10, true, false, 4, null),
-((select id from categories where name_ar='العصائر والمشروبات'), 'شاي', 'Tea', 'شاي ساخن', 6, true, false, 5, null),
+-- الشرمب والمأكولات البحرية
+((select id from categories where name_ar='الشرمب والمأكولات البحرية'), 'شرمب سكامبي', 'Shrimp Scampi', null, 50, true, false, 1, null),
+((select id from categories where name_ar='الشرمب والمأكولات البحرية'), 'شرمب بتر فلاي', 'Butterfly Shrimp', null, 65, true, true, 2, null),
+((select id from categories where name_ar='الشرمب والمأكولات البحرية'), 'شرمب بريدد', 'Breaded Shrimp', null, 50, true, false, 3, null),
+((select id from categories where name_ar='الشرمب والمأكولات البحرية'), 'شرمب جرل', 'Grilled Shrimp', null, 50, true, false, 4, null),
+((select id from categories where name_ar='الشرمب والمأكولات البحرية'), 'شرمب فرايد', 'Fried Shrimp', null, 50, true, false, 5, null),
+((select id from categories where name_ar='الشرمب والمأكولات البحرية'), 'شرمب جرل بربيريا', 'Grilled Shrimp Berberia', null, 65, true, false, 6, null),
+((select id from categories where name_ar='الشرمب والمأكولات البحرية'), 'شرمب شاك', 'Shrimp Shack', null, 65, true, false, 7, null),
+((select id from categories where name_ar='الشرمب والمأكولات البحرية'), 'شرمب ديناميت', 'Dynamite Shrimp', null, 60, true, true, 8, null),
 
--- الحلويات
-((select id from categories where name_ar='الحلويات'), 'كنافة', 'Kunafa', 'كنافة طازجة بالجبن والقطر', 24, true, true, 1, null),
-((select id from categories where name_ar='الحلويات'), 'مهلبية', 'Mahalabia', 'مهلبية بماء الورد والفستق', 16, true, false, 2, null),
-((select id from categories where name_ar='الحلويات'), 'أرز بالحليب', 'Rice Pudding', 'أرز بالحليب والقرفة', 16, true, false, 3, null)
-on conflict do nothing;
+-- سي فود باكيت
+((select id from categories where name_ar='سي فود باكيت'), 'سي فود بويل', 'Seafood Boil', 'باكيت مأكولات بحرية مشكلة', 150, true, true, 1, null),
+((select id from categories where name_ar='سي فود باكيت'), 'سي فود ناتا', 'Seafood Nata', 'باكيت مأكولات بحرية مشكلة', 150, true, false, 2, null),
+((select id from categories where name_ar='سي فود باكيت'), 'سي فود لادو ليمونو', 'Seafood Lado Limono', 'باكيت مأكولات بحرية مشكلة', 150, true, false, 3, null),
+
+-- طواجن الجمبري
+((select id from categories where name_ar='طواجن الجمبري'), 'طاجن جمبري كاري', 'Curry Shrimp Tagine', null, 80, true, false, 1, null),
+((select id from categories where name_ar='طواجن الجمبري'), 'زبدية جمبري — صغير', 'Shrimp Zebdia — Small', null, 50, true, false, 2, null),
+((select id from categories where name_ar='طواجن الجمبري'), 'زبدية جمبري — كبير', 'Shrimp Zebdia — Large', null, 80, true, false, 3, null),
+((select id from categories where name_ar='طواجن الجمبري'), 'فروتي دي ماري', 'Frutti di Mare', null, 100, true, true, 4, null),
+
+-- طواجن السمك (الأسعار غير مذكورة في المنيو — حدّثها من لوحة التحكم)
+((select id from categories where name_ar='طواجن السمك'), 'طاجن حريمة مغربي', 'Moroccan Hraima Tagine', null, 0, true, false, 1, null),
+((select id from categories where name_ar='طواجن السمك'), 'طاجن طحينة وبصل', 'Tahini & Onion Tagine', null, 0, true, false, 2, null),
+
+-- فيليه السمك
+((select id from categories where name_ar='فيليه السمك'), 'سلمون ناتا', 'Salmon Nata', null, 70, true, true, 1, null),
+((select id from categories where name_ar='فيليه السمك'), 'سلمون لادو ليمونو', 'Salmon Lado Limono', null, 70, true, false, 2, null),
+((select id from categories where name_ar='فيليه السمك'), 'سلمون صويا وعسل', 'Soy & Honey Salmon', null, 70, true, false, 3, null),
+((select id from categories where name_ar='فيليه السمك'), 'فيليه سي باس بربيريا', 'Sea Bass Fillet Berberia', null, 70, true, false, 4, null),
+
+-- المشاريب
+((select id from categories where name_ar='المشاريب'), 'ليمون ونعنع فرش', 'Fresh Lemon Mint', null, 20, true, true, 1, null),
+((select id from categories where name_ar='المشاريب'), 'بلو موهيتو', 'Blue Mojito', null, 25, true, false, 2, null),
+((select id from categories where name_ar='المشاريب'), 'موهيتو فواكه', 'Fruit Mojito', null, 25, true, false, 3, null),
+((select id from categories where name_ar='المشاريب'), 'موهيتو كيوي', 'Kiwi Mojito', null, 25, true, false, 4, null),
+((select id from categories where name_ar='المشاريب'), 'سبرايت', 'Sprite', null, 7, true, false, 5, null),
+((select id from categories where name_ar='المشاريب'), 'كوكاكولا', 'Coca-Cola', null, 7, true, false, 6, null),
+
+-- المشروبات الساخنة
+((select id from categories where name_ar='المشروبات الساخنة'), 'شاي', 'Tea', null, 8, true, false, 1, null),
+((select id from categories where name_ar='المشروبات الساخنة'), 'قهوة — سنجل', 'Coffee — Single', null, 7, true, false, 2, null),
+((select id from categories where name_ar='المشروبات الساخنة'), 'قهوة — دبل', 'Coffee — Double', null, 10, true, false, 3, null),
+((select id from categories where name_ar='المشروبات الساخنة'), 'نسكافيه', 'Nescafé', null, 10, true, false, 4, null);
 
 -- Settings -------------------------------------------------
 update public.settings set
   name_ar    = 'طلة بحر',
-  name_en    = 'Talat Bahr',
-  tagline_ar = 'مأكولات بحرية طازجة · على ضفاف البحر',
+  name_en    = 'Sea View',
+  tagline_ar = 'مطعم مأكولات بحرية فاخر',
   currency   = '₪',
-  phone      = '',
-  instagram  = '',
-  whatsapp   = ''
+  logo_url   = '/logo.jpg'
 where id = 1;

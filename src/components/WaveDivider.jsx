@@ -1,7 +1,7 @@
 /**
  * Decorative SVG wave band — طلة بحر sea motif.
  */
-export default function WaveDivider({ className = '', color = '#e8b86d', opacity = 0.25 }) {
+export default function WaveDivider({ className = '', color = '#5b9bd5', opacity = 0.25 }) {
   return (
     <div className={`pointer-events-none select-none ${className}`} aria-hidden>
       <svg

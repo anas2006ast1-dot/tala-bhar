@@ -28,7 +28,7 @@ export default function CategoryTabs({ categories, activeId, onSelect }) {
   }, [activeId])
 
   return (
-    <div className="sticky top-[56px] z-30 border-y border-white/5 bg-surface-2/90 backdrop-blur-md sm:top-[60px] md:top-[68px]">
+    <div className="sticky top-[56px] z-30 border-y border-accent/10 bg-surface-2/90 backdrop-blur-md sm:top-[60px] md:top-[68px]">
       <div
         ref={scroller}
         className="no-scrollbar snap-tabs flex gap-2 overflow-x-auto px-3 py-2.5 sm:gap-2 sm:py-3 md:gap-3"
@@ -42,8 +42,8 @@ export default function CategoryTabs({ categories, activeId, onSelect }) {
               onClick={() => onSelect(c)}
               className={`group flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-2 text-sm font-semibold transition-all duration-200 sm:px-4 sm:py-2 md:px-4 md:py-2.5 ${
                 active
-                  ? 'border-accent bg-accent text-surface-2 shadow-lg shadow-accent/20'
-                  : 'border-white/10 bg-white/5 text-text/80 hover:border-accent/50 hover:text-accent'
+                  ? 'border-accent bg-accent text-surface shadow-lg shadow-accent/20'
+                  : 'border-accent/15 bg-white/50 text-text/80 hover:border-accent/50 hover:text-accent'
               }`}
             >
               {c.icon && <CategoryIcon name={c.icon} className="shrink-0" size={16} />}

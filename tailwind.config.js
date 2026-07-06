@@ -11,13 +11,17 @@ export default {
         xl: '1280px',
       },
       colors: {
-        // Customer-facing dark elegant theme
-        primary: '#1a1a2e',
-        surface: '#16213e',
-        'surface-2': '#0f1d33',
-        accent: '#e8b86d',
-        'accent-dark': '#c89b4e',
-        text: '#eaeaea',
+        // Customer-facing theme — هوية منيو "طلة بحر SeaView"
+        // ورق كريمي + كحلي بحري + أزرق فاتح + ذهبي لإطارات الأسعار
+        primary: '#16324f',
+        surface: '#f7f2e8',
+        'surface-2': '#f1eadc',
+        accent: '#1d3a5e',
+        'accent-dark': '#12293f',
+        sea: '#5b9bd5',
+        'sea-light': '#a9c6dd',
+        gold: '#b9974b',
+        text: '#1b2a3a',
       },
       fontFamily: {
         sans: ['Cairo', 'system-ui', 'sans-serif'],

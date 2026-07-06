@@ -69,7 +69,7 @@ export default function QRCodeDisplay({ url, restaurantName = RESTAURANT_NAME })
           <p className="mt-1 break-all text-sm text-gray-500">{url}</p>
           <p className="mt-2 text-xs text-gray-400">وجّه هذا الكود لرابط القائمة العامة</p>
           {includeLabel && (
-            <p className="mt-3 text-xl font-bold text-surface-2" style={{ fontFamily: "'Cairo', sans-serif" }}>{restaurantName}</p>
+            <p className="mt-3 text-xl font-bold text-primary" style={{ fontFamily: "'Cairo', sans-serif" }}>{restaurantName}</p>
           )}
         </div>
       </div>
@@ -83,13 +83,13 @@ export default function QRCodeDisplay({ url, restaurantName = RESTAURANT_NAME })
           <input
             type="range" min="160" max="320" step="20" value={size}
             onChange={(e) => setSize(Number(e.target.value))}
-            className="w-full accent-[#e8b86d]"
+            className="w-full accent-[#1d3a5e]"
           />
         </div>
       </div>
 
       <label className="flex items-center gap-2 text-sm text-gray-700">
-        <input type="checkbox" checked={includeLabel} onChange={(e) => setIncludeLabel(e.target.checked)} className="accent-[#e8b86d]" />
+        <input type="checkbox" checked={includeLabel} onChange={(e) => setIncludeLabel(e.target.checked)} className="accent-[#1d3a5e]" />
         إظهار اسم المطعم أسفل الكود
       </label>
 

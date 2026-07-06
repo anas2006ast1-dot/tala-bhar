@@ -7,13 +7,13 @@
    - Background sync 'menu-sync' -> clients get notified to refresh
    ============================================================ */
 
-const CACHE_NAME = 'talat-bahr-v1';
+const CACHE_NAME = 'talat-bahr-v2-seaview';
 const APP_SHELL = [
   '/',
   '/index.html',
   '/menu',
   '/manifest.json',
-  '/logo.svg',
+  '/logo.jpg',
   '/icon-192.png',
   '/icon-512.png',
 ];

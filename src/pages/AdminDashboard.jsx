@@ -79,7 +79,7 @@ export default function AdminDashboard({ onLogout }) {
       >
         <div className="flex items-center justify-between border-b border-gray-100 px-4 py-4">
           <div className="flex items-center gap-2">
-            <img src="/logo.svg" alt="" className="h-9 w-9 rounded-full" />
+            <img src="/logo.jpg" alt="" className="h-9 w-9 rounded-full" />
             <span className="font-bold text-gray-900">{RESTAURANT_NAME}</span>
           </div>
           <button onClick={() => setSidebarOpen(false)} className="min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-400 md:hidden">

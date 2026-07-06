@@ -8,13 +8,13 @@ function MenuItemCard({ item }) {
     <article
       className={`reveal group relative overflow-hidden rounded-2xl border p-3 transition-all duration-300 sm:p-3 md:rounded-2xl md:p-4 ${
         unavailable
-          ? 'border-white/5 bg-white/[0.02] opacity-60'
-          : 'border-white/10 bg-white/[0.04] hover:border-accent/40 hover:bg-white/[0.07] hover:shadow-xl hover:shadow-black/30'
+          ? 'border-accent/5 bg-white/30 opacity-60'
+          : 'border-accent/10 bg-white/60 hover:border-accent/40 hover:bg-white/80 hover:shadow-xl hover:shadow-accent/10'
       }`}
     >
       {/* featured badge */}
       {item.is_featured && (
-        <span className="absolute right-2.5 top-2.5 z-10 flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-surface-2 shadow sm:right-3 sm:top-3 sm:text-[11px]">
+        <span className="absolute right-2.5 top-2.5 z-10 flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-surface shadow sm:right-3 sm:top-3 sm:text-[11px]">
           <Flame size={12} /> موصى به
         </span>
       )}
@@ -27,7 +27,7 @@ function MenuItemCard({ item }) {
           type="button"
           disabled={!item.image_url}
           data-lightbox={item.image_url || ''}
-          className={`relative grid shrink-0 place-items-center overflow-hidden rounded-xl bg-white/5 md:mb-3 md:h-44 md:w-full ${
+          className={`relative grid shrink-0 place-items-center overflow-hidden rounded-xl bg-accent/5 md:mb-3 md:h-44 md:w-full ${
             item.image_url ? 'cursor-zoom-in' : 'cursor-default'
           } h-[88px] w-[88px] sm:h-24 sm:w-24`}
           aria-label={item.name_ar}
@@ -41,7 +41,7 @@ function MenuItemCard({ item }) {
               className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
             />
           ) : (
-            <ImageIcon className="text-white/20" />
+            <ImageIcon className="text-accent/25" />
           )}
           {unavailable && (
             <span className="absolute inset-0 grid place-items-center bg-black/60 text-xs font-bold text-white">
@@ -63,12 +63,16 @@ function MenuItemCard({ item }) {
             )}
           </div>
           <div className="mt-1.5 flex items-end gap-2 sm:mt-2 sm:pt-1 md:mt-2 md:pt-0">
-            <span className="text-[1rem] font-extrabold text-accent sm:text-lg md:text-[1.15rem]">
-              {Number(item.price).toLocaleString('en-US')}
-            </span>
-            <span className="mb-0.5 text-xs font-semibold text-accent/80">
-              {CURRENCY}
-            </span>
+            {Number(item.price) > 0 ? (
+              <span className="inline-flex items-baseline gap-1 rounded-lg border border-gold/60 bg-white/50 px-2.5 py-0.5">
+                <span className="text-[1rem] font-extrabold text-accent sm:text-lg md:text-[1.15rem]">
+                  {Number(item.price).toLocaleString('en-US')}
+                </span>
+                <span className="text-xs font-semibold text-accent/80">{CURRENCY}</span>
+              </span>
+            ) : (
+              <span className="text-xs font-semibold text-text/50">اسأل عن السعر</span>
+            )}
           </div>
         </div>
       </div>

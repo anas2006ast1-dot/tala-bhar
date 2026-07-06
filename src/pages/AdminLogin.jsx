@@ -45,7 +45,7 @@ export default function AdminLogin() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="relative w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-xl sm:rounded-3xl sm:p-8"
+        className="relative w-full max-w-md rounded-2xl border border-accent/10 bg-white/60 p-5 backdrop-blur-xl sm:rounded-3xl sm:p-8"
       >
         <button
           onClick={() => navigate('/menu')}
@@ -76,7 +76,7 @@ export default function AdminLogin() {
                 placeholder="••••••••"
                 autoFocus
                 required
-                className="w-full rounded-xl border border-white/10 bg-white/5 py-3 pr-11 pl-11 text-text placeholder:text-text/30 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+                className="w-full rounded-xl border border-accent/15 bg-white/70 py-3 pr-11 pl-11 text-text placeholder:text-text/30 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
               />
               <button
                 type="button"
@@ -90,7 +90,7 @@ export default function AdminLogin() {
           </label>
 
           {error && (
-            <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-center text-sm text-red-300">
+            <div className="rounded-lg border border-red-500/30 bg-red-100 p-3 text-center text-sm text-red-700">
               {error}
             </div>
           )}
