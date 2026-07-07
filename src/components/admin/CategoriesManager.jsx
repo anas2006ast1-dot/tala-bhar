@@ -78,7 +78,8 @@ export default function CategoriesManager({ categories, onRefresh }) {
     if (form.id) {
       await supabase.from('categories').update(form).eq('id', form.id)
     } else {
-      await supabase.from('categories').insert(form)
+      const { id, ...insertData } = form
+      await supabase.from('categories').insert(insertData)
     }
     setSaving(false)
     setModal({ open: false, item: null })

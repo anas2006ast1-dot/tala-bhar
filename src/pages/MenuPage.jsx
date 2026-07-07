@@ -28,7 +28,6 @@ export default function MenuPage() {
         ...c,
         items: items.filter((i) => i.category_id === c.id),
       }))
-      .filter((c) => c.items.length > 0)
   }, [categories, items])
 
   // default active = first category
