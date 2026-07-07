@@ -69,7 +69,7 @@ export default function ItemsManager({ categories, items, onRefresh }) {
             onChange={(e) => setFilterCat(e.target.value)}
             className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm focus:border-accent focus:bg-white focus:outline-none"
           >
-            <option value="__all__">كل الفئات</option>
+            <option value="__all__">كل الأقسام</option>
             {categories.map((c) => (
               <option key={c.id} value={c.id}>{c.name_ar}</option>
             ))}

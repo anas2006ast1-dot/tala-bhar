@@ -13,7 +13,7 @@ import { supabase, MENU_URL, RESTAURANT_NAME } from '../lib/supabaseClient'
 import { logout as adminLogout } from '../lib/adminAuth'
 
 const TABS = [
-  { key: 'categories', label: 'الفئات', icon: Tags },
+  { key: 'categories', label: 'الأقسام', icon: Tags },
   { key: 'items', label: 'الأطباق', icon: UtensilsCrossed },
   { key: 'qr', label: 'QR Code', icon: QrCode },
   { key: 'settings', label: 'الإعدادات', icon: Settings },

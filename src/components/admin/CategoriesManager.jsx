@@ -1,5 +1,21 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, Pencil, Trash2, GripVertical, Eye, EyeOff } from 'lucide-react'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import Modal from './Modal'
 import Toggle from './Toggle'
 import ConfirmDialog from './ConfirmDialog'
@@ -15,8 +31,42 @@ export default function CategoriesManager({ categories, onRefresh }) {
   const [modal, setModal] = useState({ open: false, item: null })
   const [confirm, setConfirm] = useState({ open: false, item: null })
   const [saving, setSaving] = useState(false)
+  const [localCategories, setLocalCategories] = useState([])
+
+  useEffect(() => {
+    setLocalCategories(categories)
+  }, [categories])
 
   const demo = isDemo()
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
+
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    if (demo) return alert('وضع المعاينة — لا يمكن حفظ الترتيب بدون ربط Supabase.');
+
+    setLocalCategories((items) => {
+      const oldIndex = items.findIndex((i) => i.id === active.id);
+      const newIndex = items.findIndex((i) => i.id === over.id);
+
+      const newItems = arrayMove(items, oldIndex, newIndex);
+
+      // Background update
+      const updates = newItems.map((item, index) => {
+        return supabase.from('categories').update({ sort_order: index + 1 }).eq('id', item.id);
+      });
+      Promise.all(updates).then(() => onRefresh());
+
+      return newItems;
+    });
+  }
 
   const openNew = () => setModal({ open: true, item: null })
   const openEdit = (c) => setModal({ open: true, item: c })
@@ -72,46 +122,38 @@ export default function CategoriesManager({ categories, onRefresh }) {
   return (
     <div>
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h3 className="text-lg font-bold text-gray-900">الفئات ({categories.length})</h3>
+        <h3 className="text-lg font-bold text-gray-900">الأقسام ({categories.length})</h3>
         <button
           onClick={openNew}
           className="flex items-center justify-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-dark sm:justify-start"
         >
-          <Plus size={16} /> إضافة فئة
+          <Plus size={16} /> إضافة قسم
         </button>
       </div>
 
       <div className="space-y-2">
-        {categories.map((c) => (
-          <div
-            key={c.id}
-            className="flex flex-col gap-2 rounded-xl border border-gray-100 bg-white p-3 shadow-sm transition hover:shadow-md sm:flex-row sm:items-center sm:gap-3 sm:p-3"
+        <DndContext 
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext 
+            items={localCategories.map(c => c.id)}
+            strategy={verticalListSortingStrategy}
           >
-            <div className="flex items-center gap-3">
-              <GripVertical className="shrink-0 text-gray-300" size={18} />
-              {c.icon && <CategoryIcon name={c.icon} className="shrink-0 text-accent" size={20} />}
-              <div className="min-w-0 flex-1">
-                <span className="font-bold text-gray-900">{c.name_ar}</span>
-                {c.name_en && <span className="mr-2 text-xs text-gray-400">{c.name_en}</span>}
-              </div>
-              <span className="hidden text-xs text-gray-400 sm:block">ترتيب: {c.sort_order}</span>
-            </div>
-            <div className="flex items-center gap-1 border-t border-gray-100 pt-2 sm:border-t-0 sm:pt-0 sm:gap-2">
-              <span className="text-xs text-gray-400 sm:hidden">ترتيب: {c.sort_order}</span>
-              <button onClick={() => toggleVisible(c)} title={c.is_visible ? 'إخفاء' : 'إظهار'} className="min-h-[44px] min-w-[44px] flex items-center justify-center">
-                {c.is_visible ? <Eye size={18} className="text-green-600" /> : <EyeOff size={18} className="text-gray-400" />}
-              </button>
-              <button onClick={() => openEdit(c)} className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-accent">
-                <Pencil size={16} />
-              </button>
-              <button onClick={() => openDel(c)} className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600">
-                <Trash2 size={16} />
-              </button>
-            </div>
-          </div>
-        ))}
-        {categories.length === 0 && (
-          <p className="py-8 text-center text-sm text-gray-400">لا توجد فئات بعد.</p>
+            {localCategories.map((c) => (
+              <SortableCategory 
+                key={c.id} 
+                c={c} 
+                onToggleVisible={toggleVisible} 
+                onOpenEdit={openEdit} 
+                onOpenDel={openDel} 
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
+        {localCategories.length === 0 && (
+          <p className="py-8 text-center text-sm text-gray-400">لا توجد أقسام بعد.</p>
         )}
       </div>
 
@@ -127,8 +169,8 @@ export default function CategoriesManager({ categories, onRefresh }) {
       {/* Delete Confirm */}
       <ConfirmDialog
         open={confirm.open}
-        title="حذف الفئة"
-        message={`سيتم حذف "${confirm.item?.name_ar}" وجميع أصنافها. متابعة؟`}
+        title="حذف القسم"
+        message={`سيتم حذف "${confirm.item?.name_ar}" وجميع أصنافه. متابعة؟`}
         confirmText="حذف"
         onConfirm={deleteCat}
         onClose={() => setConfirm({ open: false, item: null })}
@@ -141,13 +183,15 @@ export default function CategoriesManager({ categories, onRefresh }) {
 function CategoryFormModal({ open, onClose, onSave, item, saving }) {
   const [name_ar, setNameAr] = useState('')
   const [name_en, setNameEn] = useState('')
-  const [icon, setIcon] = useState('')
+  const [sortOrder, setSortOrder] = useState(0)
 
-  const handleOpen = () => {
-    setNameAr(item?.name_ar || '')
-    setNameEn(item?.name_en || '')
-    setIcon(item?.icon || '')
-  }
+  useEffect(() => {
+    if (open) {
+      setNameAr(item?.name_ar || '')
+      setNameEn(item?.name_en || '')
+      setSortOrder(item?.sort_order ?? 0)
+    }
+  }, [open, item])
 
   const submit = (e) => {
     e.preventDefault()
@@ -156,14 +200,14 @@ function CategoryFormModal({ open, onClose, onSave, item, saving }) {
       id: item?.id || null,
       name_ar: name_ar.trim(),
       name_en: name_en.trim() || null,
-      icon: icon.trim() || null,
-      sort_order: item?.sort_order ?? 0,
+      icon: item?.icon || name_ar.trim(),
+      sort_order: Number(sortOrder) || 0,
       is_visible: item?.is_visible ?? true,
     })
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={item ? 'تعديل الفئة' : 'إضافة فئة'} onAfterEnter={handleOpen}>
+    <Modal open={open} onClose={onClose} title={item ? 'تعديل القسم' : 'إضافة قسم'}>
       <form onSubmit={submit} className="space-y-4">
         <label className="block">
           <span className="mb-1.5 block text-sm font-semibold text-gray-700">الاسم (عربي) *</span>
@@ -183,12 +227,12 @@ function CategoryFormModal({ open, onClose, onSave, item, saving }) {
           />
         </label>
         <label className="block">
-          <span className="mb-1.5 block text-sm font-semibold text-gray-700">أيقونة (إيموجي)</span>
+          <span className="mb-1.5 block text-sm font-semibold text-gray-700">ترتيب العرض</span>
           <input
-            value={icon}
-            onChange={(e) => setIcon(e.target.value)}
-            placeholder="🦐"
-            className="w-24 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-center text-2xl focus:border-accent focus:bg-white focus:outline-none focus:ring-1 focus:ring-accent"
+            type="number"
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value)}
+            className="w-24 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-center focus:border-accent focus:bg-white focus:outline-none focus:ring-1 focus:ring-accent"
           />
         </label>
         <div className="flex gap-3 pt-2">
@@ -202,4 +246,52 @@ function CategoryFormModal({ open, onClose, onSave, item, saving }) {
       </form>
     </Modal>
   )
+}
+
+function SortableCategory({ c, onToggleVisible, onOpenEdit, onOpenDel }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: c.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex flex-col gap-2 rounded-xl border border-gray-100 bg-white p-3 shadow-sm transition hover:shadow-md sm:flex-row sm:items-center sm:gap-3 sm:p-3 bg-white"
+    >
+      <div className="flex items-center gap-3">
+        {/* drag handle */}
+        <div {...attributes} {...listeners} className="cursor-grab hover:bg-gray-50 rounded p-1 touch-none">
+          <GripVertical className="shrink-0 text-gray-300" size={18} />
+        </div>
+        <CategoryIcon name={c.icon || c.name_ar} className="shrink-0 text-accent" size={20} />
+        <div className="min-w-0 flex-1">
+          <span className="font-bold text-gray-900">{c.name_ar}</span>
+          {c.name_en && <span className="mr-2 text-xs text-gray-400">{c.name_en}</span>}
+        </div>
+        <span className="hidden text-xs text-gray-400 sm:block">ترتيب: {c.sort_order}</span>
+      </div>
+      <div className="flex items-center gap-1 border-t border-gray-100 pt-2 sm:border-t-0 sm:pt-0 sm:gap-2">
+        <span className="text-xs text-gray-400 sm:hidden">ترتيب: {c.sort_order}</span>
+        <button onClick={() => onToggleVisible(c)} title={c.is_visible ? 'إخفاء' : 'إظهار'} className="min-h-[44px] min-w-[44px] flex items-center justify-center">
+          {c.is_visible ? <Eye size={18} className="text-green-600" /> : <EyeOff size={18} className="text-gray-400" />}
+        </button>
+        <button onClick={() => onOpenEdit(c)} className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-accent">
+          <Pencil size={16} />
+        </button>
+        <button onClick={() => onOpenDel(c)} className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600">
+          <Trash2 size={16} />
+        </button>
+      </div>
+    </div>
+  );
 }
