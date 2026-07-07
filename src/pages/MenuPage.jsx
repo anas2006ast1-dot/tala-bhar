@@ -102,12 +102,12 @@ export default function MenuPage() {
         <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3 sm:px-4 sm:py-3 md:px-6 md:py-4">
           <img
             src={logo}
-            alt=""
-            className="h-10 w-10 rounded-full ring-1 ring-accent/40 sm:h-11 sm:w-11 md:h-12 md:w-12"
+            alt={restaurantName}
+            className="h-11 w-auto max-w-[140px] object-contain sm:h-12 sm:max-w-[160px] md:h-14"
           />
           <div className="min-w-0 flex-1">
             <h1 className="text-lg font-bold leading-tight text-accent sm:text-xl md:text-2xl" style={{ fontFamily: "'Cairo', sans-serif" }}>
-              {restaurantName}
+              أبو حصيرة
             </h1>
             <p className="truncate text-[11px] text-text/60 sm:text-xs">{tagline}</p>
           </div>
@@ -133,15 +133,12 @@ export default function MenuPage() {
           <WaveDivider className="absolute inset-x-0 top-0" opacity={0.18} />
           <img
             src={logo}
-            alt=""
-            className="mx-auto mb-3 h-24 w-24 rounded-2xl sm:h-28 sm:w-28"
+            alt={restaurantName}
+            className="mx-auto mb-2 h-auto w-64 max-w-[82%] rounded-2xl object-contain sm:w-80"
           />
-          <h2 className="text-2xl font-bold text-accent sm:text-3xl md:text-5xl" style={{ fontFamily: "'Cairo', sans-serif" }}>
-            {restaurantName}
+          <h2 className="text-2xl font-extrabold text-accent sm:text-3xl md:text-4xl" style={{ fontFamily: "'Cairo', sans-serif" }}>
+            أبو حصيرة
           </h2>
-          <h3 className="mt-1 text-lg font-semibold tracking-widest text-sea sm:text-xl" style={{ fontFamily: "'Cairo', sans-serif" }}>
-            SEA VIEW
-          </h3>
           <p className="mx-auto mt-2 max-w-md text-sm text-text/65 sm:text-base">{tagline}</p>
           <div className="mt-4 flex items-center justify-center gap-1.5">
             <span className="h-1.5 w-1.5 rounded-full bg-accent" />
@@ -194,8 +191,8 @@ export default function MenuPage() {
       <footer className="border-t border-accent/10 bg-surface-2/60">
         <WaveDivider className="opacity-60" opacity={0.15} />
         <div className="mx-auto max-w-5xl px-4 py-8 text-center sm:px-6 md:px-6 md:py-10">
-          <img src={logo} alt="" className="mx-auto mb-3 h-12 w-12 rounded-xl sm:h-14 sm:w-14" />
-          <h3 className="text-lg font-bold text-accent sm:text-xl" style={{ fontFamily: "'Cairo', sans-serif" }}>{restaurantName}</h3>
+          <img src={logo} alt={restaurantName} className="mx-auto mb-3 h-auto w-44 max-w-[70%] rounded-xl object-contain sm:w-52" />
+          <h3 className="text-lg font-bold text-accent sm:text-xl" style={{ fontFamily: "'Cairo', sans-serif" }}>أبو حصيرة</h3>
           <p className="mt-1 text-xs text-text/50">
             شكراً لزيارتكم — نتمنى لكم تجربة بحرية مميزة
           </p>

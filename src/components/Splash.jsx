@@ -69,6 +69,22 @@ export default function Splash({ logo = '/logo.jpg', name = 'مطعم طلة ب�
           />
         </div>
 
+        {/* أبو حصيرة — تحت اللوجو */}
+        <h2
+          className="splash-item splash-fade-up"
+          style={{
+            animationDelay: d.tagline,
+            fontFamily: "'Cairo', system-ui, sans-serif",
+            fontWeight: 800,
+            fontSize: '1.5rem',
+            color: '#1d3a5e',
+            margin: '0 0 0.35rem',
+            letterSpacing: '1px',
+          }}
+        >
+          أبو حصيرة
+        </h2>
+
         {/* tagline */}
         <p
           className="splash-item splash-fade-up"
