@@ -27,7 +27,7 @@ function MenuItemCard({ item }) {
           type="button"
           disabled={!item.image_url}
           data-lightbox={item.image_url || ''}
-          className={`relative grid shrink-0 place-items-center overflow-hidden rounded-xl bg-accent/5 md:mb-3 md:h-44 md:w-full ${
+          className={`relative grid shrink-0 place-items-center overflow-hidden rounded-xl bg-accent/5 md:mb-3 md:aspect-square md:h-auto md:w-full ${
             item.image_url ? 'cursor-zoom-in' : 'cursor-default'
           } h-[88px] w-[88px] sm:h-24 sm:w-24`}
           aria-label={item.name_ar}
@@ -38,7 +38,7 @@ function MenuItemCard({ item }) {
               alt={item.name_ar}
               loading="lazy"
               decoding="async"
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+              className="absolute inset-0 h-full w-full object-contain p-1 transition-transform duration-500 group-hover:scale-[1.04] md:p-1.5"
             />
           ) : (
             <ImageIcon className="text-accent/25" />
