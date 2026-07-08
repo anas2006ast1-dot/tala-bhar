@@ -38,7 +38,7 @@ function MenuItemCard({ item }) {
               alt={item.name_ar}
               loading="lazy"
               decoding="async"
-              className="absolute inset-0 h-full w-full object-contain p-1 transition-transform duration-500 group-hover:scale-[1.04] md:p-1.5"
+              className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
             />
           ) : (
             <ImageIcon className="text-accent/25" />
