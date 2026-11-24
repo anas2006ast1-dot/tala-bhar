@@ -10,7 +10,6 @@ select
   log_attributes['request.headers.user_agent'] as user_agent,
   log_attributes['request.headers.cf_connecting_ip'] as client_ip,
   count() as request_count,
-  sum(toUInt64OrZero(log_attributes['response.headers.content_length'])) as estimated_response_bytes
 from logs
 where source = 'edge_logs'
   and log_attributes['request.method'] = 'GET'
