@@ -12,10 +12,15 @@
 const DB_NAME = 'talat-bahr';
 const STORE = 'kv';
 const SNAPSHOT_KEY = 'menu_snapshot';
+const MENU_IMAGE_CACHE = 'talat-bahr-menu-images-v1';
 
 // ---------- tiny IndexedDB key-value wrapper ----------
 function openDB() {
   return new Promise((resolve, reject) => {
+    if (typeof indexedDB === 'undefined') {
+      reject(new Error('IndexedDB is unavailable'));
+      return;
+    }
     const req = indexedDB.open(DB_NAME, 1);
     req.onupgradeneeded = () => {
       const db = req.result;
@@ -32,8 +37,21 @@ async function idbGet(key) {
     return await new Promise((resolve, reject) => {
       const tx = db.transaction(STORE, 'readonly');
       const req = tx.objectStore(STORE).get(key);
-      req.onsuccess = () => resolve(req.result ?? null);
+      let value = null;
+      req.onsuccess = () => { value = req.result ?? null; };
       req.onerror = () => reject(req.error);
+      tx.oncomplete = () => {
+        db.close();
+        resolve(value);
+      };
+      tx.onabort = () => {
+        db.close();
+        reject(tx.error);
+      };
+      tx.onerror = () => {
+        db.close();
+        reject(tx.error);
+      };
     });
   } catch {
     return null;
@@ -46,8 +64,18 @@ async function idbSet(key, value) {
     await new Promise((resolve, reject) => {
       const tx = db.transaction(STORE, 'readwrite');
       tx.objectStore(STORE).put(value, key);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
+      tx.oncomplete = () => {
+        db.close();
+        resolve();
+      };
+      tx.onabort = () => {
+        db.close();
+        reject(tx.error);
+      };
+      tx.onerror = () => {
+        db.close();
+        reject(tx.error);
+      };
     });
   } catch {
     /* storage unavailable — degrade gracefully */
@@ -62,6 +90,27 @@ export async function saveSnapshot(data) {
 
 export async function loadSnapshot() {
   return idbGet(SNAPSHOT_KEY);
+}
+
+/** Remove device-cache entries for images no longer referenced by a fresh menu. */
+export async function pruneMenuImageCache(imageUrls = []) {
+  if (typeof caches === 'undefined') return;
+
+  const currentUrls = new Set(imageUrls.filter(Boolean));
+  const cache = await caches.open(MENU_IMAGE_CACHE);
+  for (const request of await cache.keys()) {
+    let url;
+    try {
+      url = new URL(request.url);
+    } catch {
+      continue;
+    }
+
+    const isMenuPhoto =
+      (url.hostname.endsWith('.supabase.co') || url.hostname.endsWith('.supabase.in')) &&
+      /^\/storage\/v1\/object\/public\/menu-images\/.+/i.test(url.pathname);
+    if (isMenuPhoto && !currentUrls.has(request.url)) await cache.delete(request);
+  }
 }
 
 // ---------- online/offline helpers ----------
@@ -88,6 +137,7 @@ export async function registerBackgroundSync() {
  * Returns an unsubscribe function.
  */
 export function onConnectivityChange({ onOnline, onOffline } = {}) {
+  if (typeof window === 'undefined') return () => {};
   const handleOnline = () => onOnline?.();
   const handleOffline = () => onOffline?.();
   window.addEventListener('online', handleOnline);

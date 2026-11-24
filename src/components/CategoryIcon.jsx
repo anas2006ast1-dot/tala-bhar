@@ -1,5 +1,7 @@
 import React from 'react'
-import * as Icons from 'lucide-react'
+import { Beef, Cake, Coffee, CupSoda, Fish, Flame, Pizza, Salad, Soup, Utensils } from 'lucide-react'
+
+const Icons = { Beef, Cake, Coffee, CupSoda, Fish, Flame, Pizza, Salad, Soup, Utensils }
 
 /**
  * Maps emojis or icon names to Lucide SVG Icons.
