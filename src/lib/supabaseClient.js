@@ -1,14 +1,18 @@
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY
+const tabSessionStorage = (() => {
+  try { return typeof window !== 'undefined' ? window.sessionStorage : null } catch { return null }
+})()
 
 /** True when Supabase env vars are properly configured. */
 export const isSupabaseConfigured =
   !!supabaseUrl &&
   !!supabaseAnonKey &&
   supabaseUrl !== 'your_supabase_url' &&
-  supabaseAnonKey !== 'your_anon_key'
+  supabaseAnonKey !== 'your_anon_key' &&
+  supabaseAnonKey !== 'your_publishable_key'
 
 if (!isSupabaseConfigured) {
   // eslint-disable-next-line no-console
@@ -28,9 +32,10 @@ export const supabase = createClient(
   isSupabaseConfigured ? supabaseAnonKey : 'placeholder-anon-key',
   {
     auth: {
-      persistSession: true,
+      persistSession: Boolean(tabSessionStorage),
+      ...(tabSessionStorage ? { storage: tabSessionStorage } : {}),
       autoRefreshToken: true,
-      detectSessionInUrl: true,
+      detectSessionInUrl: false,
     },
     realtime: {
       params: { eventsPerSecond: 2 },

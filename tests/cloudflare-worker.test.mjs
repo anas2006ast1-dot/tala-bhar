@@ -7,9 +7,17 @@ function makeEnv(overrides = {}) {
   return {
     objects,
     env: {
-      ADMIN_PASSWORD: 'test-only-password',
-      ADMIN_SESSION_SECRET: 'test-only-session-secret-with-enough-entropy',
       APP_ORIGINS: 'https://menu.example',
+      SUPABASE_URL: 'https://project.example.supabase.co',
+      SUPABASE_ANON_KEY: 'public-test-key',
+      AUTH_FETCH: async (url, options) => {
+        assert.match(url, /\/auth\/v1\/user$/)
+        assert.equal(options.headers.apikey, 'public-test-key')
+        const token = options.headers.Authorization.replace('Bearer ', '')
+        if (token === 'admin-access-token') return Response.json({ id: 'admin-id', app_metadata: { role: 'admin' } })
+        if (token === 'regular-access-token') return Response.json({ id: 'user-id', app_metadata: {}, user_metadata: { role: 'admin' } })
+        return new Response('{}', { status: 401 })
+      },
       PUBLIC_IMAGE_BASE_URL: 'https://images.example.com',
       MENU_IMAGES: {
         put: async (key, value, options) => objects.set(key, { value, options }),
@@ -20,7 +28,6 @@ function makeEnv(overrides = {}) {
           return { body: new Response(body).body, httpMetadata: stored.options.httpMetadata }
         },
       },
-      LOGIN_LIMITER: { limit: async () => ({ success: true }) },
       UPLOAD_LIMITER: { limit: async () => ({ success: true }) },
       ...overrides,
     },
@@ -31,49 +38,34 @@ function ctx() {
   return { waitUntil: (promise) => promise }
 }
 
-async function login(env) {
-  const response = await worker.fetch(new Request('https://media.example/admin/session', {
-    method: 'POST',
-    headers: { Origin: 'https://menu.example', 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password: env.ADMIN_PASSWORD }),
-  }), env, ctx())
-  return { response, body: await response.json() }
-}
-
-test('Worker issues a short-lived admin token and rejects bad credentials/origins', async () => {
+test('Worker validates Supabase Auth app_metadata and rejects regular users and bad origins', async () => {
   const { env } = makeEnv()
-  const rejected = await worker.fetch(new Request('https://media.example/admin/session', {
-    method: 'POST',
-    headers: { Origin: 'https://menu.example', 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password: 'wrong' }),
-  }), env, ctx())
-  assert.equal(rejected.status, 401)
-
   const wrongOrigin = await worker.fetch(new Request('https://media.example/admin/session', {
-    method: 'POST',
-    headers: { Origin: 'https://attacker.example', 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password: env.ADMIN_PASSWORD }),
+    headers: { Origin: 'https://attacker.example', Authorization: 'Bearer admin-access-token' },
   }), env, ctx())
   assert.equal(wrongOrigin.status, 403)
 
-  const { response, body } = await login(env)
-  assert.equal(response.status, 200)
-  assert.ok(body.token)
   const verified = await worker.fetch(new Request('https://media.example/admin/session', {
-    headers: { Origin: 'https://menu.example', Authorization: `Bearer ${body.token}` },
+    headers: { Origin: 'https://menu.example', Authorization: 'Bearer admin-access-token' },
   }), env, ctx())
+  assert.equal(verified.status, 200)
   assert.deepEqual(await verified.json(), { valid: true })
+
+  const regular = await worker.fetch(new Request('https://media.example/admin/session', {
+    headers: { Origin: 'https://menu.example', Authorization: 'Bearer regular-access-token' },
+  }), env, ctx())
+  assert.equal(regular.status, 401)
+  assert.deepEqual(await regular.json(), { valid: false })
 })
 
 test('only authenticated image writes are accepted and receive immutable URLs', async () => {
   const { env, objects } = makeEnv()
-  const { body: session } = await login(env)
   const validPng = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10, 0])
   const response = await worker.fetch(new Request('https://media.example/admin/images', {
     method: 'POST',
     headers: {
       Origin: 'https://menu.example',
-      Authorization: `Bearer ${session.token}`,
+      Authorization: 'Bearer admin-access-token',
       'Content-Type': 'image/png',
     },
     body: validPng,
@@ -88,6 +80,13 @@ test('only authenticated image writes are accepted and receive immutable URLs', 
     method: 'POST', headers: { Origin: 'https://menu.example', 'Content-Type': 'image/png' }, body: validPng,
   }), env, ctx())
   assert.equal(denied.status, 401)
+
+  const regularUser = await worker.fetch(new Request('https://media.example/admin/images', {
+    method: 'POST',
+    headers: { Origin: 'https://menu.example', Authorization: 'Bearer regular-access-token', 'Content-Type': 'image/png' },
+    body: validPng,
+  }), env, ctx())
+  assert.equal(regularUser.status, 401)
 })
 
 test('menu endpoint serves a durable R2 snapshot to a first-time device', async () => {
@@ -107,7 +106,6 @@ test('menu endpoint serves a durable R2 snapshot to a first-time device', async 
 
 test('admin can publish a fresh Supabase snapshot and customers receive updated prices', async () => {
   const { env, objects } = makeEnv()
-  const { body: session } = await login(env)
   const updatedSnapshot = {
     categories: [{ id: 'c1' }],
     items: [{ id: 'i1', price: 7, is_available: false }],
@@ -117,7 +115,7 @@ test('admin can publish a fresh Supabase snapshot and customers receive updated 
     method: 'POST',
     headers: {
       Origin: 'https://menu.example',
-      Authorization: `Bearer ${session.token}`,
+      Authorization: 'Bearer admin-access-token',
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(updatedSnapshot),

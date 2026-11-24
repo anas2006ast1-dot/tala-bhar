@@ -19,43 +19,21 @@ export default {
       return getMenuSnapshot(request, env, ctx, cors)
     }
     if (url.pathname === '/admin/session') {
-      if (request.method === 'POST') return createSession(request, env, cors)
       if (request.method === 'GET') {
-        const valid = await verifyRequest(request, env)
+        const valid = await verifyAdminRequest(request, env)
         return json({ valid }, valid ? 200 : 401, cors)
       }
     }
     if (request.method === 'POST' && url.pathname === '/admin/images') {
-      if (!(await verifyRequest(request, env))) return json({ error: 'Unauthorized.' }, 401, cors)
+      if (!(await verifyAdminRequest(request, env))) return json({ error: 'Administrator session required.' }, 401, cors)
       return uploadImage(request, env, cors)
     }
     if (request.method === 'POST' && url.pathname === '/admin/menu-cache') {
-      if (!(await verifyRequest(request, env))) return json({ error: 'Unauthorized.' }, 401, cors)
+      if (!(await verifyAdminRequest(request, env))) return json({ error: 'Administrator session required.' }, 401, cors)
       return storeMenuSnapshot(request, env, ctx, cors)
     }
     return json({ error: 'Not found.' }, 404, cors)
   },
-}
-
-async function createSession(request, env, cors) {
-  if (!env.LOGIN_LIMITER) return json({ error: 'Login protection is not configured.' }, 503, cors)
-  const rate = await env.LOGIN_LIMITER.limit({
-    key: request.headers.get('CF-Connecting-IP') || 'unknown',
-  })
-  if (rate && !rate.success) return json({ error: 'Too many login attempts. Try again shortly.' }, 429, cors)
-  const bodyBytes = await readBodyUpTo(request, 1024)
-  if (!bodyBytes) return json({ error: 'Invalid request.' }, 400, cors)
-  let body
-  try { body = JSON.parse(decoder.decode(bodyBytes)) } catch { return json({ error: 'Invalid request.' }, 400, cors) }
-  if (!body || typeof body.password !== 'string' || body.password.length > 256 || !env.ADMIN_PASSWORD ||
-      !env.ADMIN_SESSION_SECRET || env.ADMIN_SESSION_SECRET.length < 32) {
-    return json({ error: 'Admin media service is not configured.' }, 503, cors)
-  }
-  if (!(await constantTimeEqual(body.password, env.ADMIN_PASSWORD))) {
-    return json({ error: 'Incorrect password.' }, 401, cors)
-  }
-  const token = await createToken(env.ADMIN_SESSION_SECRET)
-  return json({ token }, 200, { ...cors, 'Cache-Control': 'no-store' })
 }
 
 async function uploadImage(request, env, cors) {
@@ -169,71 +147,30 @@ function makeMenuCacheKey(request, origin) {
   return new Request(key.toString())
 }
 
-async function createToken(secret) {
-  const payload = base64Url(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 60 * 60, sub: 'admin' }))
-  const signature = await sign(payload, secret)
-  return `${payload}.${base64Url(signature)}`
-}
-
-async function verifyRequest(request, env) {
+async function verifyAdminRequest(request, env) {
   const token = request.headers.get('Authorization')?.replace(/^Bearer\s+/i, '') || ''
-  if (!token || !env.ADMIN_SESSION_SECRET) return false
-  const [payload, signature, extra] = token.split('.')
-  if (!payload || !signature || extra) return false
-  let claims
-  try { claims = JSON.parse(decodeBase64Url(payload)) } catch { return false }
-  if (claims.sub !== 'admin' || !Number.isFinite(claims.exp) || claims.exp <= Date.now() / 1000) return false
-  const expected = base64Url(await sign(payload, env.ADMIN_SESSION_SECRET))
-  return constantTimeStringEqual(signature, expected)
+  if (!token || !env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) return false
+  try {
+    const authFetch = env.AUTH_FETCH || fetch
+    const response = await authFetch(`${env.SUPABASE_URL.replace(/\/$/, '')}/auth/v1/user`, {
+      headers: {
+        apikey: env.SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${token}`,
+      },
+      cache: 'no-store',
+    })
+    if (!response.ok) return false
+    const user = await response.json()
+    return user?.app_metadata?.role === 'admin'
+  } catch {
+    return false
+  }
 }
 
 async function tokenFingerprint(request) {
   const token = request.headers.get('Authorization') || ''
   const digest = await crypto.subtle.digest('SHA-256', encoder.encode(token))
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
-}
-
-async function sign(value, secret) {
-  const key = await crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
-  return crypto.subtle.sign('HMAC', key, encoder.encode(value))
-}
-
-async function constantTimeEqual(left, right) {
-  const [a, b] = await Promise.all([sha256(left), sha256(right)])
-  return constantTimeBytesEqual(a, b)
-}
-
-async function sha256(value) {
-  return new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(value)))
-}
-
-function constantTimeStringEqual(left, right) {
-  const a = encoder.encode(left)
-  const b = encoder.encode(right)
-  if (a.length !== b.length) return false
-  let result = 0
-  for (let index = 0; index < a.length; index += 1) result |= a[index] ^ b[index]
-  return result === 0
-}
-
-function constantTimeBytesEqual(a, b) {
-  if (a.length !== b.length) return false
-  let result = 0
-  for (let index = 0; index < a.length; index += 1) result |= a[index] ^ b[index]
-  return result === 0
-}
-
-function base64Url(value) {
-  const bytes = typeof value === 'string' ? encoder.encode(value) : new Uint8Array(value)
-  let binary = ''
-  for (const byte of bytes) binary += String.fromCharCode(byte)
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
-}
-
-function decodeBase64Url(value) {
-  const base64 = value.replace(/-/g, '+').replace(/_/g, '/')
-  const binary = atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, '='))
-  return new TextDecoder().decode(Uint8Array.from(binary, (char) => char.charCodeAt(0)))
 }
 
 function normalizeImageType(type) {

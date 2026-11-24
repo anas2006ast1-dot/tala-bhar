@@ -37,7 +37,7 @@ async function migrate() {
   const mediaApiUrl = requireEnv('MEDIA_API_URL').replace(/\/$/, '')
   const publicBase = new URL(requireEnv('R2_PUBLIC_BASE_URL'))
   if (publicBase.protocol !== 'https:') throw new Error('R2_PUBLIC_BASE_URL must use HTTPS.')
-  const token = await getWorkerToken(mediaApiUrl)
+  const token = await getAdminAccessToken()
   const manifestPath = `menu-image-migration-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
   const manifest = { createdAt: new Date().toISOString(), entries: [] }
   await saveManifest(manifestPath, manifest)
@@ -116,15 +116,16 @@ async function rollback(path) {
   console.log('Database URLs were restored from the manifest. Supabase originals and R2 copies were left untouched.')
 }
 
-async function getWorkerToken(mediaApiUrl) {
-  const response = await fetch(`${mediaApiUrl}/admin/session`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password: requireEnv('ADMIN_PASSWORD') }),
+async function getAdminAccessToken() {
+  const supabase = createPublicClient()
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: requireEnv('ADMIN_EMAIL'),
+    password: requireEnv('ADMIN_PASSWORD'),
   })
-  const result = await response.json().catch(() => ({}))
-  if (!response.ok || !result.token) throw new Error('Could not authenticate with the media Worker.')
-  return result.token
+  if (error || data?.user?.app_metadata?.role !== 'admin' || !data?.session?.access_token) {
+    throw new Error('Could not authenticate as a Supabase administrator.')
+  }
+  return data.session.access_token
 }
 
 function createServiceClient() {
