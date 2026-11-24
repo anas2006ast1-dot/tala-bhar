@@ -21,6 +21,11 @@ function makeEnv(overrides = {}) {
       PUBLIC_IMAGE_BASE_URL: 'https://images.example.com',
       MENU_IMAGES: {
         put: async (key, value, options) => objects.set(key, { value, options }),
+        head: async (key) => {
+          const stored = objects.get(key)
+          if (!stored) return null
+          return { size: stored.value.byteLength, httpMetadata: stored.options.httpMetadata, httpEtag: 'test-etag' }
+        },
         get: async (key) => {
           const stored = objects.get(key)
           if (!stored) return null
@@ -87,6 +92,26 @@ test('only authenticated image writes are accepted and receive immutable URLs', 
     body: validPng,
   }), env, ctx())
   assert.equal(regularUser.status, 401)
+})
+
+test('public R2 images can be served through workers.dev with immutable cache headers', async () => {
+  const { env, objects } = makeEnv()
+  const key = 'items/11111111-1111-4111-8111-111111111111.webp'
+  const bytes = Uint8Array.from([82, 73, 70, 70, 0, 0, 0, 0, 87, 69, 66, 80])
+  await env.MENU_IMAGES.put(key, bytes, {
+    httpMetadata: { contentType: 'image/webp', cacheControl: 'public, max-age=31536000, immutable' },
+  })
+  const response = await worker.fetch(new Request(`https://tala-bahr-media.example.workers.dev/${key}`), env, ctx())
+  assert.equal(response.status, 200)
+  assert.equal(response.headers.get('Content-Type'), 'image/webp')
+  assert.equal(response.headers.get('Cache-Control'), 'public, max-age=31536000, immutable')
+  assert.deepEqual(new Uint8Array(await response.arrayBuffer()), bytes)
+
+  const head = await worker.fetch(new Request(`https://tala-bahr-media.example.workers.dev/${key}`, { method: 'HEAD' }), env, ctx())
+  assert.equal(head.status, 200)
+  assert.equal(head.headers.get('Content-Length'), String(bytes.byteLength))
+  assert.equal(head.headers.get('ETag'), 'test-etag')
+  assert.equal(objects.size, 1)
 })
 
 test('menu endpoint serves a durable R2 snapshot to a first-time device', async () => {

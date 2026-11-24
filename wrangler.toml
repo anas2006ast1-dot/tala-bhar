@@ -3,6 +3,9 @@ main = "cloudflare/worker.js"
 compatibility_date = "2026-11-24"
 workers_dev = true
 
+[cache]
+enabled = true
+
 [[r2_buckets]]
 binding = "MENU_IMAGES"
 bucket_name = "tala-bahr-menu-images"

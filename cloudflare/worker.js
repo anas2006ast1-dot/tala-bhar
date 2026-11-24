@@ -18,6 +18,10 @@ export default {
     if (url.pathname === '/menu' && request.method === 'GET') {
       return getMenuSnapshot(request, env, ctx, cors)
     }
+    if (/^\/items\/[0-9a-f-]+\.(?:avif|jpe?g|png|webp)$/i.test(url.pathname) &&
+        (request.method === 'GET' || request.method === 'HEAD')) {
+      return serveR2Image(request, env)
+    }
     if (url.pathname === '/admin/session') {
       if (request.method === 'GET') {
         const valid = await verifyAdminRequest(request, env)
@@ -64,6 +68,24 @@ async function uploadImage(request, env, cors) {
   })
   const publicBase = env.PUBLIC_IMAGE_BASE_URL.replace(/\/$/, '')
   return json({ publicUrl: `${publicBase}/${key}` }, 201, cors)
+}
+
+async function serveR2Image(request, env) {
+  if (!env.MENU_IMAGES) return json({ error: 'R2 image service is not configured.' }, 503)
+  const key = new URL(request.url).pathname.slice(1)
+  const object = request.method === 'HEAD'
+    ? await env.MENU_IMAGES.head(key)
+    : await env.MENU_IMAGES.get(key)
+  if (!object) return new Response('Not found.', { status: 404, headers: { 'Cache-Control': 'no-store' } })
+
+  const headers = new Headers({
+    'Content-Type': object.httpMetadata?.contentType || 'application/octet-stream',
+    'Cache-Control': object.httpMetadata?.cacheControl || 'public, max-age=31536000, immutable',
+    'X-Content-Type-Options': 'nosniff',
+  })
+  if (object.httpEtag) headers.set('ETag', object.httpEtag)
+  if (Number.isFinite(object.size)) headers.set('Content-Length', String(object.size))
+  return new Response(request.method === 'HEAD' ? null : object.body, { headers })
 }
 
 async function storeMenuSnapshot(request, env, ctx, cors) {
