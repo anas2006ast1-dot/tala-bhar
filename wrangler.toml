@@ -1,0 +1,32 @@
+name = "tala-bahr-media"
+main = "cloudflare/worker.js"
+compatibility_date = "2026-11-24"
+workers_dev = true
+
+[[r2_buckets]]
+binding = "MENU_IMAGES"
+bucket_name = "tala-bahr-menu-images"
+
+[vars]
+# Replace these with the actual production hostnames before deployment.
+PUBLIC_IMAGE_BASE_URL = "https://images.example.com"
+APP_ORIGINS = "https://your-menu-domain.example"
+# These are public read-only credentials; never add R2 secret keys here.
+SUPABASE_URL = "https://your-project.supabase.co"
+SUPABASE_ANON_KEY = "your-publishable-or-anon-key"
+
+[[ratelimits]]
+name = "LOGIN_LIMITER"
+namespace_id = "73142501"
+
+  [ratelimits.simple]
+  limit = 10
+  period = 60
+
+[[ratelimits]]
+name = "UPLOAD_LIMITER"
+namespace_id = "73142502"
+
+  [ratelimits.simple]
+  limit = 60
+  period = 60

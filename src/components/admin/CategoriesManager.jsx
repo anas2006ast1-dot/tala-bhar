@@ -58,11 +58,14 @@ export default function CategoriesManager({ categories, onRefresh }) {
 
       const newItems = arrayMove(items, oldIndex, newIndex);
 
-      // Background update
       const updates = newItems.map((item, index) => {
         return supabase.from('categories').update({ sort_order: index + 1 }).eq('id', item.id);
       });
-      Promise.all(updates).then(() => onRefresh());
+      Promise.all(updates).then(async (results) => {
+        const failure = results.find((result) => result.error)?.error
+        if (failure) alert(`تعذّر حفظ ترتيب بعض الأقسام: ${failure.message}`)
+        await onRefresh()
+      })
 
       return newItems;
     });
@@ -76,48 +79,65 @@ export default function CategoriesManager({ categories, onRefresh }) {
     if (demo) return alert('وضع المعاينة — لا يمكن الحفظ بدون ربط Supabase.')
     setSaving(true)
     if (form.id) {
-      await supabase.from('categories').update(form).eq('id', form.id)
+      const { error } = await supabase.from('categories').update(form).eq('id', form.id)
+      if (error) {
+        setSaving(false)
+        return alert(`فشل حفظ القسم: ${error.message}`)
+      }
     } else {
       const { id, ...insertData } = form
-      await supabase.from('categories').insert(insertData)
+      const { error } = await supabase.from('categories').insert(insertData)
+      if (error) {
+        setSaving(false)
+        return alert(`فشل إضافة القسم: ${error.message}`)
+      }
     }
     setSaving(false)
     setModal({ open: false, item: null })
-    onRefresh()
+    await onRefresh()
   }
 
   const deleteCat = async () => {
     if (!confirm.item || demo) return
     
     // 1. Delete the category
-    await supabase.from('categories').delete().eq('id', confirm.item.id)
+    const { error: deleteError } = await supabase.from('categories').delete().eq('id', confirm.item.id)
+    if (deleteError) return alert(`فشل حذف القسم: ${deleteError.message}`)
     
     // 2. Adjust sorting of remaining categories
-    const { data: remainingCats } = await supabase
+    const { data: remainingCats, error: readError } = await supabase
       .from('categories')
       .select('id, sort_order')
       .order('sort_order', { ascending: true })
+
+    if (readError) {
+      setConfirm({ open: false, item: null })
+      await onRefresh()
+      return alert(`تم حذف القسم لكن تعذّر تحديث ترتيب الباقي: ${readError.message}`)
+    }
       
     if (remainingCats && remainingCats.length > 0) {
       for (let i = 0; i < remainingCats.length; i++) {
         const newOrder = i + 1
         if (remainingCats[i].sort_order !== newOrder) {
-          await supabase
+          const { error } = await supabase
             .from('categories')
             .update({ sort_order: newOrder })
             .eq('id', remainingCats[i].id)
+          if (error) alert(`تم حذف القسم لكن تعذّر تحديث الترتيب: ${error.message}`)
         }
       }
     }
     
     setConfirm({ open: false, item: null })
-    onRefresh()
+    await onRefresh()
   }
 
   const toggleVisible = async (c) => {
     if (demo) return alert('وضع المعاينة — لا يمكن التعديل بدون ربط Supabase.')
-    await supabase.from('categories').update({ is_visible: !c.is_visible }).eq('id', c.id)
-    onRefresh()
+    const { error } = await supabase.from('categories').update({ is_visible: !c.is_visible }).eq('id', c.id)
+    if (error) return alert(`فشل تحديث ظهور القسم: ${error.message}`)
+    await onRefresh()
   }
 
   return (

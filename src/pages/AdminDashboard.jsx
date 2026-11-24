@@ -60,7 +60,7 @@ export default function AdminDashboard({ onLogout }) {
     const { error: saveError } = await supabase.from('settings').update(settingForm).eq('id', 1)
     setSaving(false)
     if (saveError) return alert(`فشل حفظ الإعدادات: ${saveError.message}`)
-    await refresh({ force: true })
+    await refresh({ force: true, publish: true })
   }
 
   const menuUrl = MENU_URL
@@ -172,8 +172,8 @@ export default function AdminDashboard({ onLogout }) {
               </div>
             ) : (
               <>
-                {tab === 'categories' && <CategoriesManager categories={categories} onRefresh={refresh} />}
-                {tab === 'items' && <ItemsManager categories={categories} items={items} onRefresh={refresh} />}
+                {tab === 'categories' && <CategoriesManager categories={categories} onRefresh={() => refresh({ force: true, publish: true })} />}
+                {tab === 'items' && <ItemsManager categories={categories} items={items} onRefresh={() => refresh({ force: true, publish: true })} />}
                 {tab === 'qr' && (
                   <div>
                     <h3 className="mb-4 text-lg font-bold text-gray-900">رابط QR Code</h3>

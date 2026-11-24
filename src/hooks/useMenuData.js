@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { isDemo, demoCategories, demoItems, demoSettings } from '../lib/demoData'
-import { loadSnapshot, onConnectivityChange, pruneMenuImageCache, saveSnapshot } from '../lib/sync'
+import { isOnline, loadSnapshot, onConnectivityChange, pruneMenuImageCache, saveSnapshot } from '../lib/sync'
 import { fetchMenuSnapshot } from '../lib/menuRepository'
 import { createMenuRefreshBatcher } from '../lib/menuRealtime'
+import { fetchMenuSnapshotFromMedia } from '../lib/menuMirror'
+import { getMediaApiUrl, publishMenuSnapshot } from '../lib/adminAuth'
 
 const MENU_CACHE_TTL = 10_000
 let lastSnapshot = null
@@ -62,7 +64,7 @@ export default function useMenuData({ onlyVisible = false } = {}) {
     setSettings(snapshot.settings || null)
   }, [])
 
-  const refresh = useCallback(async ({ force = !onlyVisible } = {}) => {
+  const refresh = useCallback(async ({ force = !onlyVisible, publish = false } = {}) => {
     setError(null)
     if (!onlyVisible) setIsFresh(false)
 
@@ -98,14 +100,23 @@ export default function useMenuData({ onlyVisible = false } = {}) {
 
     setLoading(true)
     try {
-      const snapshot = await fetchMenuSnapshot(supabase, { force })
+      const mediaApiUrl = getMediaApiUrl()
+      const snapshot = onlyVisible && mediaApiUrl
+        ? await fetchMenuSnapshotFromMedia(mediaApiUrl)
+        : await fetchMenuSnapshot(supabase, { force })
       lastSnapshot = snapshot
       lastSuccessAt = Date.now()
       applySnapshot(snapshot)
       setIsFresh(true)
+      if (!onlyVisible && publish && mediaApiUrl && !(await publishMenuSnapshot(snapshot))) {
+        throw new Error('لم يتمكن خادم الصور من تحديث نسخة المنيو للزبائن. أعد المحاولة قبل اعتماد التغيير.')
+      }
       await Promise.all([
         saveSnapshot(snapshot).catch(() => {}),
-        pruneMenuImageCache(snapshot.items.map((item) => item.image_url)).catch(() => {}),
+        pruneMenuImageCache([
+          ...snapshot.items.map((item) => item.image_url),
+          snapshot.settings?.logo_url,
+        ]).catch(() => {}),
       ])
     } catch (requestError) {
       setIsFresh(false)
@@ -114,6 +125,17 @@ export default function useMenuData({ onlyVisible = false } = {}) {
         if (fallback?.data) {
           applySnapshot(fallback.data)
           setError(null)
+        } else if (isOnline()) {
+          try {
+            const directSnapshot = await fetchMenuSnapshot(supabase, { force: true })
+            lastSnapshot = directSnapshot
+            lastSuccessAt = Date.now()
+            applySnapshot(directSnapshot)
+            setIsFresh(true)
+            await saveSnapshot(directSnapshot).catch(() => {})
+          } catch (fallbackError) {
+            setError(fallbackError.message || String(fallbackError))
+          }
         } else {
           setError(requestError.message || String(requestError))
         }
@@ -133,7 +155,7 @@ export default function useMenuData({ onlyVisible = false } = {}) {
     if (isDemo()) return
 
     const listener = {
-      refresh,
+      refresh: (options) => refresh({ ...options, publish: !onlyVisible }),
       invalidate: (pending = false) => {
         if (!onlyVisible) {
           setIsFresh(false)
@@ -143,7 +165,7 @@ export default function useMenuData({ onlyVisible = false } = {}) {
     }
     const unsubscribeRealtime = subscribeToMenuRefresh(listener)
     const unsubscribeConnectivity = onConnectivityChange({
-      onOnline: () => refresh({ force: true }),
+      onOnline: () => refresh({ force: true, publish: !onlyVisible }),
       onOffline: listener.invalidate,
     })
 

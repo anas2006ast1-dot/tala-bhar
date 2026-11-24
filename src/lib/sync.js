@@ -13,6 +13,11 @@ const DB_NAME = 'talat-bahr';
 const STORE = 'kv';
 const SNAPSHOT_KEY = 'menu_snapshot';
 const MENU_IMAGE_CACHE = 'talat-bahr-menu-images-v1';
+let menuImageOrigins = new Set();
+
+export function setMenuImageOrigins(origins = []) {
+  menuImageOrigins = new Set(origins.filter(Boolean));
+}
 
 // ---------- tiny IndexedDB key-value wrapper ----------
 function openDB() {
@@ -106,9 +111,11 @@ export async function pruneMenuImageCache(imageUrls = []) {
       continue;
     }
 
-    const isMenuPhoto =
+    const isSupabaseMenuPhoto =
       (url.hostname.endsWith('.supabase.co') || url.hostname.endsWith('.supabase.in')) &&
       /^\/storage\/v1\/object\/public\/menu-images\/.+/i.test(url.pathname);
+    const isR2MenuPhoto = menuImageOrigins.has(url.origin) && /^\/items\/.+/i.test(url.pathname);
+    const isMenuPhoto = isSupabaseMenuPhoto || isR2MenuPhoto;
     if (isMenuPhoto && !currentUrls.has(request.url)) await cache.delete(request);
   }
 }

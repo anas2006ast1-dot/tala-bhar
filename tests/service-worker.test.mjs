@@ -95,6 +95,30 @@ test('public menu image is downloaded once and then served from Cache-First stor
   assert.equal(fetchCount, 2)
 })
 
+test('configured R2 image origin uses Cache-First and works offline after the first view', async () => {
+  let fetchCount = 0
+  let online = true
+  const { listeners } = createWorker(async () => {
+    fetchCount += 1
+    if (!online) throw new Error('offline')
+    return new Response('r2-image', { status: 200 })
+  })
+  const waits = []
+  listeners.get('message')({
+    data: { type: 'CONFIGURE_MENU_IMAGE_ORIGINS', origins: ['https://images.example.com'] },
+    waitUntil: (promise) => waits.push(promise),
+  })
+  await Promise.all(waits)
+
+  const request = new Request('https://images.example.com/items/dish.webp')
+  const first = await dispatchFetch(listeners.get('fetch'), request)
+  assert.equal(await first.text(), 'r2-image')
+  online = false
+  const second = await dispatchFetch(listeners.get('fetch'), request)
+  assert.equal(await second.text(), 'r2-image')
+  assert.equal(fetchCount, 1)
+})
+
 test('Supabase database and non-menu storage requests bypass the service-worker cache', async () => {
   let fetchCount = 0
   const { listeners } = createWorker(async () => {
@@ -115,10 +139,15 @@ test('Supabase database and non-menu storage requests bypass the service-worker 
     listener,
     new Request('https://project.supabase.co/auth/v1/token?grant_type=password', { method: 'POST' })
   )
+  const mediaSessionResponse = await dispatchFetch(
+    listener,
+    new Request('https://media.example/admin/session')
+  )
 
   assert.equal(databaseResponse, undefined)
   assert.equal(otherBucketResponse, undefined)
   assert.equal(authResponse, undefined)
+  assert.equal(mediaSessionResponse, undefined)
   assert.equal(fetchCount, 0)
 })
 

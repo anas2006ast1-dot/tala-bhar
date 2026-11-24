@@ -36,14 +36,16 @@ export default function ItemsManager({ categories, items, onRefresh }) {
 
   const deleteItem = async () => {
     if (!delState.item || demo) return
-    await supabase.from('menu_items').delete().eq('id', delState.item.id)
+    const { error } = await supabase.from('menu_items').delete().eq('id', delState.item.id)
+    if (error) return alert(`فشل حذف الطبق: ${error.message}`)
     setDelState({ open: false, item: null })
     onRefresh()
   }
 
   const toggleAvail = async (item) => {
     if (demo) return alert('وضع المعاينة — لا يمكن التعديل بدون ربط Supabase.')
-    await supabase.from('menu_items').update({ is_available: !item.is_available }).eq('id', item.id)
+    const { error } = await supabase.from('menu_items').update({ is_available: !item.is_available }).eq('id', item.id)
+    if (error) return alert(`فشل تحديث التوفر: ${error.message}`)
     onRefresh()
   }
 

@@ -5,7 +5,7 @@ import { LogIn, Lock, Loader2, ArrowLeft, Eye, EyeOff } from 'lucide-react'
 import { RESTAURANT_NAME } from '../lib/supabaseClient'
 import { login } from '../lib/adminAuth'
 
-export default function AdminLogin() {
+export default function AdminLogin({ onAuthenticated }) {
   const navigate = useNavigate()
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
@@ -17,20 +17,19 @@ export default function AdminLogin() {
     document.body.classList.remove('theme-admin')
   }, [])
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault()
     setError('')
     setLoading(true)
-    // tiny delay so the spinner shows briefly
-    window.setTimeout(() => {
-      const ok = login(password)
-      setLoading(false)
-      if (!ok) {
-        setError('كلمة السر غير صحيحة.')
-        return
-      }
+    try {
+      await login(password)
+      onAuthenticated?.()
       navigate('/admin/dashboard', { replace: true })
-    }, 350)
+    } catch (err) {
+      setError(err.message || 'تعذّر تسجيل الدخول. تحقق من الاتصال ثم حاول مجددًا.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (

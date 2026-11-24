@@ -11,6 +11,9 @@
 const CACHE_PREFIX = 'talat-bahr-';
 const CACHE_NAME = 'talat-bahr-v3-shell';
 const MENU_IMAGE_CACHE = 'talat-bahr-menu-images-v1';
+const CONFIG_CACHE = 'talat-bahr-config-v1';
+const CONFIG_REQUEST = '/__talat-bahr-config/menu-image-origins';
+let configuredMenuImageOrigins = new Set();
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -42,9 +45,10 @@ self.addEventListener('activate', (event) => {
     (async () => {
       const keys = await caches.keys();
       const imageCache = await caches.open(MENU_IMAGE_CACHE);
+      await loadConfiguredMenuImageOrigins();
 
       for (const key of keys) {
-        if (!key.startsWith(CACHE_PREFIX) || key === CACHE_NAME || key === MENU_IMAGE_CACHE) continue;
+        if (!key.startsWith(CACHE_PREFIX) || key === CACHE_NAME || key === MENU_IMAGE_CACHE || key === CONFIG_CACHE) continue;
 
         // The previous worker cached Supabase images in its general cache. Move
         // those entries before removing that cache so an upgrade doesn't force
@@ -81,6 +85,20 @@ function isPublicMenuImage(url) {
     isSupabaseRequest(url) &&
     /^\/storage\/v1\/object\/public\/menu-images\/.+/i.test(url.pathname)
   );
+}
+
+function isConfiguredR2MenuImage(url) {
+  return configuredMenuImageOrigins.has(url.origin) && /^\/items\/.+\.(?:avif|jpe?g|png|webp)$/i.test(url.pathname);
+}
+
+async function loadConfiguredMenuImageOrigins() {
+  try {
+    const cache = await caches.open(CONFIG_CACHE);
+    const response = await cache.match(CONFIG_REQUEST);
+    configuredMenuImageOrigins = new Set(response ? await response.json() : []);
+  } catch {
+    configuredMenuImageOrigins = new Set();
+  }
 }
 
 async function cacheFirstPublicMenuImage(request) {
@@ -151,6 +169,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  if (isConfiguredR2MenuImage(url)) {
+    event.respondWith(cacheFirstPublicMenuImage(req));
+    return;
+  }
+
   // Google Fonts -> SWR (cache them offline)
   if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
     event.respondWith(staleWhileRevalidate(event));
@@ -174,7 +197,26 @@ self.addEventListener('fetch', (event) => {
 // ---------- MESSAGE: allow page to force cache refresh ----------
 self.addEventListener('message', (event) => {
   if (event.data === 'SKIP_WAITING') self.skipWaiting();
+  if (event.data?.type === 'CONFIGURE_MENU_IMAGE_ORIGINS') {
+    event.waitUntil(storeConfiguredMenuImageOrigins(event.data.origins));
+  }
 });
+
+async function storeConfiguredMenuImageOrigins(origins) {
+  const validOrigins = [...new Set((Array.isArray(origins) ? origins : []).filter((value) => {
+    try {
+      const url = new URL(value);
+      return url.protocol === 'https:' && value === url.origin;
+    } catch {
+      return false;
+    }
+  }))];
+  configuredMenuImageOrigins = new Set(validOrigins);
+  const cache = await caches.open(CONFIG_CACHE);
+  await cache.put(CONFIG_REQUEST, new Response(JSON.stringify(validOrigins), {
+    headers: { 'Content-Type': 'application/json' },
+  }));
+}
 
 // ---------- BACKGROUND SYNC ----------
 self.addEventListener('sync', (event) => {

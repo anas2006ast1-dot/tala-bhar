@@ -4,6 +4,7 @@ import { Loader2, Upload, X, ImageIcon } from 'lucide-react'
 import Modal from './admin/Modal'
 import Toggle from './admin/Toggle'
 import { supabase, CURRENCY } from '../lib/supabaseClient'
+import { uploadMenuImage } from '../lib/adminAuth'
 
 const EMPTY = {
   id: null,
@@ -64,24 +65,9 @@ export default function AdminItemForm({ open, onClose, onSaved, categories, item
       })
       
       setUploading(75)
-      const ext = {
-        'image/webp': 'webp',
-        'image/png': 'png',
-        'image/jpeg': 'jpg',
-      }[compressed.type] || 'jpg'
-      const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
-      const path = `items/${fileName}`
-      const { error: upErr } = await supabase.storage
-        .from('menu-images')
-        .upload(path, compressed, {
-          upsert: false,
-          contentType: compressed.type,
-          cacheControl: '31536000',
-        })
-      if (upErr) throw upErr
+      const publicUrl = await uploadMenuImage(compressed)
       setUploading(100)
-      const { data: pub } = supabase.storage.from('menu-images').getPublicUrl(path)
-      set('image_url', pub.publicUrl)
+      set('image_url', publicUrl)
     } catch (err) {
       setError('فشل رفع الصورة: ' + (err.message || err))
     } finally {
