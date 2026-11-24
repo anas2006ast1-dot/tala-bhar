@@ -1,13 +1,16 @@
 /* ============================================================
    طلة بحر — Service Worker
    Strategy:
-   - App shell + static assets  -> Cache-First (stale-while-revalidate)
-   - Supabase API (REST/Realtime) -> Network-First, fallback to cache
+   - App shell + static assets   -> Stale-While-Revalidate
+   - Public menu photos          -> Cache-First (unique immutable paths)
+   - Supabase data/auth          -> Network only; IndexedDB is the offline fallback
    - Navigation requests         -> Network-First, fallback to cached index (offline SPA)
    - Background sync 'menu-sync' -> clients get notified to refresh
    ============================================================ */
 
-const CACHE_NAME = 'talat-bahr-v2-seaview';
+const CACHE_PREFIX = 'talat-bahr-';
+const CACHE_NAME = 'talat-bahr-v3-shell';
+const MENU_IMAGE_CACHE = 'talat-bahr-menu-images-v1';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -33,14 +36,33 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// ---------- ACTIVATE: cleanup old caches ----------
+// ---------- ACTIVATE: migrate menu images and clean only our old caches ----------
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
       const keys = await caches.keys();
-      await Promise.all(
-        keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
-      );
+      const imageCache = await caches.open(MENU_IMAGE_CACHE);
+
+      for (const key of keys) {
+        if (!key.startsWith(CACHE_PREFIX) || key === CACHE_NAME || key === MENU_IMAGE_CACHE) continue;
+
+        // The previous worker cached Supabase images in its general cache. Move
+        // those entries before removing that cache so an upgrade doesn't force
+        // visitors to download the same menu photos again.
+        try {
+          const oldCache = await caches.open(key);
+          for (const request of await oldCache.keys()) {
+            if (!isPublicMenuImage(new URL(request.url))) continue;
+            if (!(await imageCache.match(request))) {
+              const response = await oldCache.match(request);
+              if (response) await imageCache.put(request, response);
+            }
+          }
+          await caches.delete(key);
+        } catch {
+          // Keep an old cache if migration failed; retry on the next activation.
+        }
+      }
       await self.clients.claim();
     })()
   );
@@ -54,6 +76,13 @@ function isSupabaseRequest(url) {
   );
 }
 
+function isPublicMenuImage(url) {
+  return (
+    isSupabaseRequest(url) &&
+    /^\/storage\/v1\/object\/public\/menu-images\/.+/i.test(url.pathname)
+  );
+}
+
 function isNavigationRequest(request) {
   return (
     request.mode === 'navigate' ||
@@ -61,21 +90,18 @@ function isNavigationRequest(request) {
   );
 }
 
-// Network-First for API: try network, cache response, fallback to cache.
-async function networkFirst(event) {
-  const cache = await caches.open(CACHE_NAME);
-  try {
-    const fresh = await fetch(event.request);
-    // only cache successful GETs (Realtime/POST/etc. must not be cached)
-    if (event.request.method === 'GET' && fresh && fresh.ok) {
-      cache.put(event.request, fresh.clone()).catch(() => {});
-    }
-    return fresh;
-  } catch (err) {
-    const cached = await cache.match(event.request);
-    if (cached) return cached;
-    throw err;
+// Public menu images use stable, unique paths. Admin uploads always create a
+// new path, so edited photos naturally miss this cache and load immediately.
+async function cacheFirstMenuImage(request) {
+  const cache = await caches.open(MENU_IMAGE_CACHE);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+
+  const response = await fetch(request);
+  if (response.ok && response.type !== 'opaque') {
+    await cache.put(request, response.clone()).catch(() => {});
   }
+  return response;
 }
 
 // Stale-While-Revalidate for static assets.
@@ -118,9 +144,12 @@ self.addEventListener('fetch', (event) => {
   }
   const url = new URL(req.url);
 
-  // Supabase API -> network-first
+  // Only public menu photos are cached. Database and auth requests stay
+  // network-only; the app's IndexedDB snapshot is the offline data fallback.
   if (isSupabaseRequest(url)) {
-    event.respondWith(networkFirst(event));
+    if (isPublicMenuImage(url)) {
+      event.respondWith(cacheFirstMenuImage(req));
+    }
     return;
   }
 
@@ -140,10 +169,8 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // everything else: try network, fallback to cache
-  event.respondWith(
-    fetch(req).catch(() => caches.match(req).then((r) => r || Response.error()))
-  );
+  // Leave other origins to the browser's normal network handling. The only
+  // cross-origin Cache-First exception is the public menu-images bucket above.
 });
 
 // ---------- MESSAGE: allow page to force cache refresh ----------

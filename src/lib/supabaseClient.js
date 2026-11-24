@@ -1,20 +1,29 @@
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const supabaseKey =
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY
+const tabSessionStorage = (() => {
+  try {
+    return typeof window !== 'undefined' ? window.sessionStorage : null
+  } catch {
+    return null
+  }
+})()
 
 /** True when Supabase env vars are properly configured. */
 export const isSupabaseConfigured =
   !!supabaseUrl &&
-  !!supabaseAnonKey &&
+  !!supabaseKey &&
   supabaseUrl !== 'your_supabase_url' &&
-  supabaseAnonKey !== 'your_anon_key'
+  supabaseKey !== 'your_publishable_key' &&
+  supabaseKey !== 'your_anon_key'
 
 if (!isSupabaseConfigured) {
   // eslint-disable-next-line no-console
   console.warn(
     '[supabase] وضع المعاينة — مفاتيح Supabase غير مضبوطة. ' +
-      'أضفها في ملف .env لتفعيل قاعدة البيانات الحقيقية.'
+    'أضفها في ملف .env لتفعيل قاعدة البيانات الحقيقية.'
   )
 }
 
@@ -25,12 +34,15 @@ if (!isSupabaseConfigured) {
  */
 export const supabase = createClient(
   isSupabaseConfigured ? supabaseUrl : 'https://placeholder.supabase.co',
-  isSupabaseConfigured ? supabaseAnonKey : 'placeholder-anon-key',
+  isSupabaseConfigured ? supabaseKey : 'placeholder-anon-key',
   {
     auth: {
-      persistSession: true,
+      // Admin sessions persist only for the current tab and are never handled
+      // by the Service Worker or Cache API.
+      persistSession: Boolean(tabSessionStorage),
+      ...(tabSessionStorage ? { storage: tabSessionStorage } : {}),
       autoRefreshToken: true,
-      detectSessionInUrl: true,
+      detectSessionInUrl: false,
     },
     realtime: {
       params: { eventsPerSecond: 2 },

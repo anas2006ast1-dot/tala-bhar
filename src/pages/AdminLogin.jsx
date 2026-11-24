@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { LogIn, Lock, Loader2, ArrowLeft, Eye, EyeOff } from 'lucide-react'
-import { RESTAURANT_NAME } from '../lib/supabaseClient'
+import { RESTAURANT_NAME, isSupabaseConfigured } from '../lib/supabaseClient'
 import { login } from '../lib/adminAuth'
 
-export default function AdminLogin() {
+export default function AdminLogin({ onAuthenticated }) {
   const navigate = useNavigate()
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -17,20 +18,23 @@ export default function AdminLogin() {
     document.body.classList.remove('theme-admin')
   }, [])
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault()
     setError('')
     setLoading(true)
-    // tiny delay so the spinner shows briefly
-    window.setTimeout(() => {
-      const ok = login(password)
-      setLoading(false)
-      if (!ok) {
-        setError('كلمة السر غير صحيحة.')
+    try {
+      const result = await login(email.trim(), password)
+      if (result.error || !result.user) {
+        setError('بيانات الدخول غير صحيحة أو هذا الحساب غير مخوّل لإدارة المنيو.')
         return
       }
+      onAuthenticated?.(result.user)
       navigate('/admin/dashboard', { replace: true })
-    }, 350)
+    } catch {
+      setError('تعذّر تسجيل الدخول. تحقق من الاتصال وإعدادات Supabase ثم حاول مجددًا.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -62,7 +66,33 @@ export default function AdminLogin() {
           <p className="mt-1 text-xs text-text/55 sm:text-sm">{RESTAURANT_NAME} — تسجيل دخول المسؤول</p>
         </div>
 
+        {!isSupabaseConfigured && (
+          <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-center text-sm text-amber-800" role="status">
+            تسجيل دخول المسؤول غير متاح حتى يتم ربط Supabase Auth.
+          </div>
+        )}
+
         <form onSubmit={submit} className="space-y-4">
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-semibold text-text/80">البريد الإلكتروني</span>
+            <div className="relative">
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text/40">
+                <Lock size={18} />
+              </span>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@example.com"
+                autoComplete="username"
+                autoFocus
+                required
+                disabled={!isSupabaseConfigured || loading}
+                className="w-full rounded-xl border border-accent/15 bg-white/70 py-3 pr-11 pl-4 text-left text-text placeholder:text-text/30 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-60"
+              />
+            </div>
+          </label>
+
           <label className="block">
             <span className="mb-1.5 block text-sm font-semibold text-text/80">كلمة السر</span>
             <div className="relative">
@@ -74,8 +104,9 @@ export default function AdminLogin() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                autoFocus
+                autoComplete="current-password"
                 required
+                disabled={!isSupabaseConfigured || loading}
                 className="w-full rounded-xl border border-accent/15 bg-white/70 py-3 pr-11 pl-11 text-text placeholder:text-text/30 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
               />
               <button
@@ -97,7 +128,7 @@ export default function AdminLogin() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !isSupabaseConfigured}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3 font-bold text-surface-2 transition hover:bg-accent-dark disabled:opacity-60"
           >
             {loading ? <Loader2 size={20} className="animate-spin" /> : <LogIn size={20} />}
