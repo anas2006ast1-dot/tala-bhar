@@ -38,6 +38,7 @@ function MenuItemCard({ item }) {
               alt={item.name_ar}
               loading="lazy"
               decoding="async"
+              sizes="(max-width: 767px) 88px, (max-width: 1023px) 50vw, 260px"
               className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
             />
           ) : (

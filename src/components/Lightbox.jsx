@@ -45,6 +45,9 @@ export default function Lightbox({ src, title, onClose }) {
             <img
               src={src}
               alt={title || ''}
+              loading="eager"
+              decoding="async"
+              fetchPriority="high"
               className="max-h-[78vh] max-w-[92vw] object-contain sm:max-h-[82vh]"
             />
             {title && (

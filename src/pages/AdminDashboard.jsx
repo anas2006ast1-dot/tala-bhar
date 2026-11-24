@@ -26,7 +26,7 @@ export default function AdminDashboard({ onLogout }) {
   const [settingForm, setSettingForm] = useState({})
   const navigate = useNavigate()
 
-  const { categories, items, settings, refresh, demo } = useMenuData({ onlyVisible: false })
+  const { categories, items, settings, refresh, loading, error, isFresh, demo } = useMenuData({ onlyVisible: false })
 
   useEffect(() => {
     document.body.classList.add('theme-admin')
@@ -47,8 +47,8 @@ export default function AdminDashboard({ onLogout }) {
     }
   }, [settings])
 
-  const logout = () => {
-    adminLogout()
+  const logout = async () => {
+    await adminLogout()
     onLogout?.()
     navigate('/admin/login', { replace: true })
   }
@@ -57,9 +57,10 @@ export default function AdminDashboard({ onLogout }) {
     e.preventDefault()
     if (demo) return alert('وضع المعاينة — لا يمكن الحفظ بدون ربط Supabase.')
     setSaving(true)
-    await supabase.from('settings').update(settingForm).eq('id', 1)
+    const { error: saveError } = await supabase.from('settings').update(settingForm).eq('id', 1)
     setSaving(false)
-    refresh()
+    if (saveError) return alert(`فشل حفظ الإعدادات: ${saveError.message}`)
+    await refresh({ force: true })
   }
 
   const menuUrl = MENU_URL
@@ -160,16 +161,29 @@ export default function AdminDashboard({ onLogout }) {
               </div>
             )}
 
-            {tab === 'categories' && <CategoriesManager categories={categories} onRefresh={refresh} />}
-            {tab === 'items' && <ItemsManager categories={categories} items={items} onRefresh={refresh} />}
-            {tab === 'qr' && (
-              <div>
-                <h3 className="mb-4 text-lg font-bold text-gray-900">رابط QR Code</h3>
-                <QRCodeDisplay url={menuUrl} />
+            {!demo && !isFresh ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800" role="status">
+                <p>{loading ? 'جارٍ التحقق من أحدث بيانات القائمة...' : `تعذّر التحقق من أحدث البيانات. ${error || ''} لن تتوفر التعديلات حتى يعود الاتصال.`}</p>
+                {!loading && (
+                  <button onClick={() => refresh({ force: true })} className="mt-3 rounded-lg bg-amber-800 px-3 py-2 font-semibold text-white">
+                    إعادة المحاولة
+                  </button>
+                )}
               </div>
-            )}
-            {tab === 'settings' && (
-              <SettingsSection form={settingForm} setForm={setSettingForm} saving={saving} onSave={saveSettings} />
+            ) : (
+              <>
+                {tab === 'categories' && <CategoriesManager categories={categories} onRefresh={refresh} />}
+                {tab === 'items' && <ItemsManager categories={categories} items={items} onRefresh={refresh} />}
+                {tab === 'qr' && (
+                  <div>
+                    <h3 className="mb-4 text-lg font-bold text-gray-900">رابط QR Code</h3>
+                    <QRCodeDisplay url={menuUrl} />
+                  </div>
+                )}
+                {tab === 'settings' && (
+                  <SettingsSection form={settingForm} setForm={setSettingForm} saving={saving} onSave={saveSettings} />
+                )}
+              </>
             )}
           </div>
         </main>

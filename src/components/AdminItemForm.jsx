@@ -49,27 +49,36 @@ export default function AdminItemForm({ open, onClose, onSaved, categories, item
 
     try {
       setUploading(5)
-      // Compress to 150KB - 200KB range (maxSizeMB: 0.18)
+      // Convert new menu photos to compact WebP while retaining enough detail
+      // for the card and lightbox. The maximum dimensions also suit phones.
       const compressed = await imageCompression(file, {
         maxSizeMB: 0.18,
         maxWidthOrHeight: 1200,
+        fileType: 'image/webp',
+        initialQuality: 0.78,
+        preserveExif: false,
         useWebWorker: true,
         onProgress: (p) => {
           setUploading(Math.round(p * 0.6)) // 0% to 60% progress is compression
         }
       })
       
-      setUploading(75) // 75% progress is starting upload
-      const ext = file.name.split('.').pop().toLowerCase()
+      setUploading(75)
+      const ext = {
+        'image/webp': 'webp',
+        'image/png': 'png',
+        'image/jpeg': 'jpg',
+      }[compressed.type] || 'jpg'
       const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
       const path = `items/${fileName}`
-
       const { error: upErr } = await supabase.storage
         .from('menu-images')
-        .upload(path, compressed, { upsert: false, contentType: compressed.type })
-
+        .upload(path, compressed, {
+          upsert: false,
+          contentType: compressed.type,
+          cacheControl: '31536000',
+        })
       if (upErr) throw upErr
-
       setUploading(100)
       const { data: pub } = supabase.storage.from('menu-images').getPublicUrl(path)
       set('image_url', pub.publicUrl)
