@@ -76,11 +76,24 @@ async function serveR2Image(request, env) {
   const object = request.method === 'HEAD'
     ? await env.MENU_IMAGES.head(key)
     : await env.MENU_IMAGES.get(key)
-  if (!object) return new Response('Not found.', { status: 404, headers: { 'Cache-Control': 'no-store' } })
+  if (!object) {
+    return new Response('Not found.', {
+      status: 404,
+      headers: {
+        'Cache-Control': 'no-store',
+        'Access-Control-Allow-Origin': '*',
+      },
+    })
+  }
 
   const headers = new Headers({
     'Content-Type': object.httpMetadata?.contentType || 'application/octet-stream',
-    'Cache-Control': object.httpMetadata?.cacheControl || 'public, max-age=31536000, immutable',
+    // HEAD is used by the migration verifier. Never let its empty body become
+    // the cached GET representation if it is the first request for this key.
+    'Cache-Control': request.method === 'HEAD'
+      ? 'no-store'
+      : (object.httpMetadata?.cacheControl || 'public, max-age=31536000, immutable'),
+    'Access-Control-Allow-Origin': '*',
     'X-Content-Type-Options': 'nosniff',
   })
   if (object.httpEtag) headers.set('ETag', object.httpEtag)

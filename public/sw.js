@@ -106,7 +106,29 @@ async function cacheFirstPublicMenuImage(request) {
   const cached = await cache.match(request);
   if (cached) return cached;
 
-  const response = await fetch(request);
+  // A normal cross-origin <img> request is no-cors and returns an opaque
+  // response. Its HTTP status and headers are hidden, so caching it could
+  // persist a 404 or an authenticated/private response. For our explicitly
+  // configured public R2 image origin, retry as credential-free CORS instead;
+  // the Worker (or R2 CORS policy) must allow the menu origin. This gives us a
+  // readable status while preserving the original <img> request and fallback.
+  const useReadableR2Request = request.mode === 'no-cors' && isConfiguredR2MenuImage(new URL(request.url));
+  const cacheRequest = useReadableR2Request
+    ? new Request(request, { mode: 'cors', credentials: 'omit' })
+    : request;
+
+  let response;
+  try {
+    response = await fetch(cacheRequest);
+  } catch (error) {
+    // A custom R2 domain may not have CORS configured yet. Keep the image
+    // usable through the browser's original no-cors path, but don't cache it.
+    if (!useReadableR2Request) throw error;
+    return fetch(request);
+  }
+
+  // Opaque responses are deliberately never cached: response.status is 0 and
+  // gives no way to distinguish a valid public image from a 404 or private data.
   if (response.ok && response.type !== 'opaque') {
     await cache.put(request, response.clone()).catch(() => {});
   }

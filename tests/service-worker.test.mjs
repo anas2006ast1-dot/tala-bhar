@@ -53,6 +53,7 @@ function createWorker(fetchMock = async () => new Response('image', { status: 20
     self,
     caches: cacheStorage,
     fetch: fetchMock,
+    Request,
     URL,
     Promise,
     Response,
@@ -98,8 +99,10 @@ test('public menu image is downloaded once and then served from Cache-First stor
 test('configured R2 image origin uses Cache-First and works offline after the first view', async () => {
   let fetchCount = 0
   let online = true
-  const { listeners } = createWorker(async () => {
+  const fetchedModes = []
+  const { listeners } = createWorker(async (request) => {
     fetchCount += 1
+    fetchedModes.push({ mode: request.mode, credentials: request.credentials })
     if (!online) throw new Error('offline')
     return new Response('r2-image', { status: 200 })
   })
@@ -111,12 +114,69 @@ test('configured R2 image origin uses Cache-First and works offline after the fi
   await Promise.all(waits)
 
   const request = new Request('https://images.example.com/items/dish.webp')
+  assert.equal(request.mode, 'cors')
   const first = await dispatchFetch(listeners.get('fetch'), request)
   assert.equal(await first.text(), 'r2-image')
   online = false
   const second = await dispatchFetch(listeners.get('fetch'), request)
   assert.equal(await second.text(), 'r2-image')
   assert.equal(fetchCount, 1)
+})
+
+test('no-cors img requests use readable credential-free CORS for configured R2 images', async () => {
+  let fetchCount = 0
+  let online = true
+  const fetchedModes = []
+  const { listeners, cacheStorage } = createWorker(async (request) => {
+    fetchCount += 1
+    fetchedModes.push({ mode: request.mode, credentials: request.credentials })
+    if (!online) throw new Error('offline')
+    return new Response('r2-image', { status: 200 })
+  })
+  const waits = []
+  listeners.get('message')({
+    data: { type: 'CONFIGURE_MENU_IMAGE_ORIGINS', origins: ['https://images.example.com'] },
+    waitUntil: (promise) => waits.push(promise),
+  })
+  await Promise.all(waits)
+
+  const request = new Request('https://images.example.com/items/dish.webp', { mode: 'no-cors' })
+  const first = await dispatchFetch(listeners.get('fetch'), request)
+  assert.equal(await first.text(), 'r2-image')
+  assert.deepEqual(fetchedModes[0], { mode: 'cors', credentials: 'omit' })
+
+  online = false
+  const second = await dispatchFetch(listeners.get('fetch'), request)
+  assert.equal(await second.text(), 'r2-image')
+  assert.equal(fetchCount, 1)
+  assert.equal((await (await cacheStorage.open('talat-bahr-menu-images-v1')).match(request)).status, 200)
+})
+
+test('opaque no-cors image responses are returned but never cached', async () => {
+  let fetchCount = 0
+  const opaqueResponse = {
+    type: 'opaque',
+    status: 0,
+    ok: false,
+    clone() { return { ...this } },
+  }
+  const { listeners, cacheStorage } = createWorker(async () => {
+    fetchCount += 1
+    return opaqueResponse
+  })
+  const request = new Request(
+    'https://project.supabase.co/storage/v1/object/public/menu-images/missing.webp',
+    { mode: 'no-cors' }
+  )
+
+  const first = await dispatchFetch(listeners.get('fetch'), request)
+  assert.equal(first.type, 'opaque')
+  assert.equal(first.status, 0)
+  assert.equal(await (await cacheStorage.open('talat-bahr-menu-images-v1')).match(request), null)
+
+  const second = await dispatchFetch(listeners.get('fetch'), request)
+  assert.equal(second.type, 'opaque')
+  assert.equal(fetchCount, 2)
 })
 
 test('Supabase database and non-menu storage requests bypass the service-worker cache', async () => {

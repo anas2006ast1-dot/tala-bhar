@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import worker from '../cloudflare/worker.js'
 
@@ -105,13 +106,30 @@ test('public R2 images can be served through workers.dev with immutable cache he
   assert.equal(response.status, 200)
   assert.equal(response.headers.get('Content-Type'), 'image/webp')
   assert.equal(response.headers.get('Cache-Control'), 'public, max-age=31536000, immutable')
+  assert.equal(response.headers.get('Access-Control-Allow-Origin'), '*')
   assert.deepEqual(new Uint8Array(await response.arrayBuffer()), bytes)
 
   const head = await worker.fetch(new Request(`https://tala-bahr-media.example.workers.dev/${key}`, { method: 'HEAD' }), env, ctx())
   assert.equal(head.status, 200)
+  assert.equal(head.headers.get('Cache-Control'), 'no-store')
   assert.equal(head.headers.get('Content-Length'), String(bytes.byteLength))
   assert.equal(head.headers.get('ETag'), 'test-etag')
   assert.equal(objects.size, 1)
+})
+
+test('missing public R2 images are not cacheable and Workers Cache is enabled for edge hits', async () => {
+  const { env } = makeEnv()
+  const response = await worker.fetch(
+    new Request('https://tala-bahr-media.example.workers.dev/items/11111111-1111-4111-8111-111111111111.webp'),
+    env,
+    ctx()
+  )
+  const wrangler = await readFile(new URL('../wrangler.toml', import.meta.url), 'utf8')
+
+  assert.equal(response.status, 404)
+  assert.equal(response.headers.get('Cache-Control'), 'no-store')
+  assert.equal(response.headers.get('Access-Control-Allow-Origin'), '*')
+  assert.match(wrangler, /\[cache\]\s+enabled\s*=\s*true/)
 })
 
 test('menu endpoint serves a durable R2 snapshot to a first-time device', async () => {
