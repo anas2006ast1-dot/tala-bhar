@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import {
   LogOut, Tags, UtensilsCrossed, QrCode, Settings,
   Menu as MenuIcon, ChevronLeft, ChevronRight,
-  ExternalLink, Eye,
+  Download, ExternalLink, Eye,
 } from 'lucide-react'
 import useMenuData from '../hooks/useMenuData'
 import CategoriesManager from '../components/admin/CategoriesManager'
@@ -11,6 +11,7 @@ import ItemsManager from '../components/admin/ItemsManager'
 import QRCodeDisplay from '../components/QRCodeDisplay'
 import { supabase, MENU_URL, RESTAURANT_NAME } from '../lib/supabaseClient'
 import { logout as adminLogout } from '../lib/adminAuth'
+import { createMenuFallbackSnapshot } from '../lib/menuSnapshot'
 
 const TABS = [
   { key: 'categories', label: 'الأقسام', icon: Tags },
@@ -63,6 +64,27 @@ export default function AdminDashboard({ onLogout }) {
     await refresh({ force: true })
   }
 
+  const downloadMenuSnapshot = () => {
+    if (demo || !isFresh || loading) {
+      return alert('تعذّر التنزيل: حدّث بيانات لوحة الأدمن أولًا بعد عودة Supabase.')
+    }
+
+    try {
+      const snapshot = createMenuFallbackSnapshot({ categories, items, settings })
+      const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'menu-fallback.json'
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } catch (downloadError) {
+      alert(downloadError.message || 'تعذّر إنشاء نسخة المنيو.')
+    }
+  }
+
   const menuUrl = MENU_URL
 
   return (
@@ -113,6 +135,15 @@ export default function AdminDashboard({ onLogout }) {
           >
             <Eye size={18} /> معاينة القائمة <ExternalLink size={14} className="mr-auto text-gray-400" />
           </a>
+          <button
+            type="button"
+            onClick={downloadMenuSnapshot}
+            disabled={demo || !isFresh || loading}
+            title="نزّل البيانات الحديثة لاستبدال ملف menu-fallback.json ثم حدّث Preview"
+            className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            <Download size={18} /> تنزيل نسخة المنيو
+          </button>
           <button
             onClick={logout}
             className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50"

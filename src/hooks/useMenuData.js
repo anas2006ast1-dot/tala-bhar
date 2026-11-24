@@ -4,6 +4,7 @@ import { isDemo, demoCategories, demoItems, demoSettings } from '../lib/demoData
 import { loadSnapshot, onConnectivityChange, pruneMenuImageCache, saveSnapshot } from '../lib/sync'
 import { fetchMenuSnapshot } from '../lib/menuRepository'
 import { createMenuRefreshBatcher } from '../lib/menuRealtime'
+import { getBundledMenuSnapshot } from '../lib/localMenu'
 
 const MENU_CACHE_TTL = 10_000
 let lastSnapshot = null
@@ -55,6 +56,7 @@ export default function useMenuData({ onlyVisible = false } = {}) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [isFresh, setIsFresh] = useState(false)
+  const bundledMenu = onlyVisible ? getBundledMenuSnapshot() : null
 
   const applySnapshot = useCallback((snapshot) => {
     setCategories(snapshot.categories || [])
@@ -66,7 +68,23 @@ export default function useMenuData({ onlyVisible = false } = {}) {
     setError(null)
     if (!onlyVisible) setIsFresh(false)
 
+    // Once a real fallback export is bundled, public visitors use that static
+    // snapshot directly. This avoids Supabase requests while the project is
+    // quota-restricted; the admin continues to fetch and save through Supabase.
+    const localMenu = bundledMenu
+    if (localMenu) {
+      applySnapshot(localMenu)
+      setIsFresh(true)
+      setLoading(false)
+      return
+    }
+
     if (isDemo()) {
+      if (onlyVisible) {
+        setError('المنيو المحلي غير جاهز بعد.')
+        setLoading(false)
+        return
+      }
       await new Promise((resolve) => setTimeout(resolve, 350))
       applySnapshot({ categories: demoCategories, items: demoItems, settings: demoSettings })
       setIsFresh(true)
@@ -123,14 +141,14 @@ export default function useMenuData({ onlyVisible = false } = {}) {
     } finally {
       setLoading(false)
     }
-  }, [applySnapshot, onlyVisible])
+  }, [applySnapshot, bundledMenu, onlyVisible])
 
   useEffect(() => {
     refresh({ force: !onlyVisible })
   }, [onlyVisible, refresh])
 
   useEffect(() => {
-    if (isDemo()) return
+    if (isDemo() || (onlyVisible && getBundledMenuSnapshot())) return
 
     const listener = {
       refresh,
@@ -163,7 +181,9 @@ export default function useMenuData({ onlyVisible = false } = {}) {
     loading,
     error,
     isFresh,
+    localFallback: Boolean(bundledMenu),
+    showImages: bundledMenu ? bundledMenu.displayImages === true : true,
     refresh,
-    demo: isDemo(),
+    demo: isDemo() && !bundledMenu,
   }
 }

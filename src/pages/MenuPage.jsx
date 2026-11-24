@@ -12,7 +12,7 @@ import CategoryIcon from '../components/CategoryIcon'
 import { RESTAURANT_NAME, CURRENCY } from '../lib/supabaseClient'
 
 export default function MenuPage() {
-  const { categories, items, settings, loading, error, demo } = useMenuData({ onlyVisible: true })
+  const { categories, items, settings, loading, error, demo, showImages } = useMenuData({ onlyVisible: true })
   const [activeId, setActiveId] = useState(null)
   const [lightbox, setLightbox] = useState(null)
   const [showSplash, setShowSplash] = useState(true)
@@ -179,7 +179,7 @@ export default function MenuPage() {
                 }}
               >
                 {cat.items.map((item) => (
-                  <MenuItemCard key={item.id} item={item} />
+                  <MenuItemCard key={item.id} item={item} showImage={showImages} />
                 ))}
               </div>
             </section>

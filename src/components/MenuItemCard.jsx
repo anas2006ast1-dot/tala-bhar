@@ -2,8 +2,9 @@ import { memo } from 'react'
 import { Flame, ImageIcon } from 'lucide-react'
 import { CURRENCY } from '../lib/supabaseClient'
 
-function MenuItemCard({ item }) {
+function MenuItemCard({ item, showImage = true }) {
   const unavailable = !item.is_available
+  const imageUrl = showImage ? item.image_url : null
   return (
     <article
       className={`reveal group relative overflow-hidden rounded-2xl border p-3 transition-all duration-300 sm:p-3 md:rounded-2xl md:p-4 ${
@@ -25,16 +26,16 @@ function MenuItemCard({ item }) {
         {/* image */}
         <button
           type="button"
-          disabled={!item.image_url}
-          data-lightbox={item.image_url || ''}
+          disabled={!imageUrl}
+          data-lightbox={imageUrl || ''}
           className={`relative grid shrink-0 place-items-center overflow-hidden rounded-xl bg-accent/5 md:mb-3 md:aspect-square md:h-auto md:w-full ${
-            item.image_url ? 'cursor-zoom-in' : 'cursor-default'
+            imageUrl ? 'cursor-zoom-in' : 'cursor-default'
           } h-[88px] w-[88px] sm:h-24 sm:w-24`}
           aria-label={item.name_ar}
         >
-          {item.image_url ? (
+          {imageUrl ? (
             <img
-              src={item.image_url}
+              src={imageUrl}
               alt={item.name_ar}
               loading="lazy"
               decoding="async"
