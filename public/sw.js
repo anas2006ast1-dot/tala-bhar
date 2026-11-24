@@ -88,7 +88,26 @@ async function cacheFirstPublicMenuImage(request) {
   const cached = await cache.match(request);
   if (cached) return cached;
 
-  const response = await fetch(request);
+  // Cross-origin <img> elements normally make no-cors requests. Their opaque
+  // responses hide status, so they cannot be cached safely. Ask the public
+  // Storage endpoint for a credential-free CORS response instead; if the
+  // project does not allow CORS, fall back to the original image request and
+  // leave that opaque response uncached.
+  const useReadableResponse = request.mode === 'no-cors' && isPublicMenuImage(new URL(request.url));
+  const cacheRequest = useReadableResponse
+    ? new Request(request, { mode: 'cors', credentials: 'omit' })
+    : request;
+
+  let response;
+  try {
+    response = await fetch(cacheRequest);
+  } catch (error) {
+    if (!useReadableResponse) throw error;
+    return fetch(request);
+  }
+
+  // Never cache opaque responses: status 0 cannot distinguish a valid image
+  // from a 404 or a private response.
   if (response.ok && response.type !== 'opaque') {
     await cache.put(request, response.clone()).catch(() => {});
   }
