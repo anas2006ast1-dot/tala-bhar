@@ -53,6 +53,7 @@ function createWorker(fetchMock = async () => new Response('image', { status: 20
     self,
     caches: cacheStorage,
     fetch: fetchMock,
+    Request,
     URL,
     Promise,
     Response,
@@ -93,6 +94,68 @@ test('public menu image is downloaded once and then served from Cache-First stor
   )
   assert.equal(await updated.text(), 'image-2')
   assert.equal(fetchCount, 2)
+})
+
+test('no-cors menu img uses credential-free CORS and caches only a readable success', async () => {
+  let fetchCount = 0
+  let online = true
+  const modes = []
+  const { listeners, cacheStorage } = createWorker(async (request) => {
+    fetchCount += 1
+    modes.push({ mode: request.mode, credentials: request.credentials })
+    if (!online) throw new Error('offline')
+    return new Response('menu-photo', { status: 200 })
+  })
+  const request = new Request(
+    'https://project.supabase.co/storage/v1/object/public/menu-images/items/dish.webp',
+    { mode: 'no-cors' }
+  )
+
+  const first = await dispatchFetch(listeners.get('fetch'), request)
+  assert.equal(await first.text(), 'menu-photo')
+  assert.deepEqual(modes, [{ mode: 'cors', credentials: 'omit' }])
+  online = false
+  const second = await dispatchFetch(listeners.get('fetch'), request)
+  assert.equal(await second.text(), 'menu-photo')
+  assert.equal(fetchCount, 1)
+  assert.equal((await (await cacheStorage.open('talat-bahr-menu-images-v1')).match(request)).status, 200)
+})
+
+test('opaque no-cors menu image fallback is displayed but never cached', async () => {
+  let fetchCount = 0
+  const opaqueResponse = {
+    type: 'opaque',
+    status: 0,
+    ok: false,
+    clone() { return { ...this } },
+  }
+  const { listeners, cacheStorage } = createWorker(async (request) => {
+    fetchCount += 1
+    if (request.mode === 'cors') throw new TypeError('CORS is unavailable')
+    return opaqueResponse
+  })
+  const request = new Request(
+    'https://project.supabase.co/storage/v1/object/public/menu-images/items/dish.webp',
+    { mode: 'no-cors' }
+  )
+
+  const response = await dispatchFetch(listeners.get('fetch'), request)
+  assert.equal(response.type, 'opaque')
+  assert.equal(response.status, 0)
+  assert.equal(fetchCount, 2)
+  assert.equal(await (await cacheStorage.open('talat-bahr-menu-images-v1')).match(request), null)
+})
+
+test('readable 404 menu images are never cached', async () => {
+  const { listeners, cacheStorage } = createWorker(async () => new Response('missing', { status: 404 }))
+  const request = new Request(
+    'https://project.supabase.co/storage/v1/object/public/menu-images/items/missing.webp',
+    { mode: 'no-cors' }
+  )
+
+  const response = await dispatchFetch(listeners.get('fetch'), request)
+  assert.equal(response.status, 404)
+  assert.equal(await (await cacheStorage.open('talat-bahr-menu-images-v1')).match(request), null)
 })
 
 test('Supabase database and non-menu storage requests bypass the service-worker cache', async () => {
